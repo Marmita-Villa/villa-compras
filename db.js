@@ -64,8 +64,8 @@ db.exec(`
 const TTL = {
   lojas:        86400,     // 24h — lojas raramente mudam
   fornecedores: 86400,     // 24h — fornecedores raramente mudam
-  produtos:     3600,      // 1h
-  fp:           3600,      // 1h
+  produtos:     86400,     // 24h — produtos raramente mudam
+  fp:           86400,     // 24h — vinculo fornecedor-produto raramente muda
   fiscal:       86400 * 7, // 7 dias
   hoje:         300,       // 5 min (vendas/estoque do dia atual)
   passado:      Infinity,  // datas passadas não expiram
