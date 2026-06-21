@@ -181,14 +181,21 @@ function datasFaltandoCompras(loja, datas) {
 }
 
 // ── Fiscal ─────────────────────────────────────────────────────────────────
-const stmtGetFis = db.prepare('SELECT json, updated_at FROM fiscal WHERE loja=? AND plu=?');
-const stmtSetFis = db.prepare('INSERT OR REPLACE INTO fiscal(loja,plu,json,updated_at) VALUES(?,?,?,?)');
+const stmtGetFis    = db.prepare('SELECT json, updated_at FROM fiscal WHERE loja=? AND plu=?');
+const stmtGetFisAny = db.prepare('SELECT json, updated_at FROM fiscal WHERE plu=? AND json IS NOT NULL ORDER BY updated_at DESC LIMIT 1');
+const stmtSetFis    = db.prepare('INSERT OR REPLACE INTO fiscal(loja,plu,json,updated_at) VALUES(?,?,?,?)');
 
 function getFiscal(loja, plu) {
+  // tenta a loja exata primeiro
   const r = stmtGetFis.get(loja, String(plu));
-  if (!r) return undefined;              // undefined = não existe no banco
-  if (isStale(r.updated_at, TTL.fiscal)) return undefined; // expirou
-  return JSON.parse(r.json);            // null = Hipcom não tem dados p/ este produto
+  if (r && !isStale(r.updated_at, TTL.fiscal)) return JSON.parse(r.json);
+  // fallback: qualquer loja que tenha dados não-nulos (fiscal é por produto, não por loja)
+  if (!r) {
+    const any = stmtGetFisAny.get(String(plu));
+    if (any && !isStale(any.updated_at, TTL.fiscal)) return JSON.parse(any.json);
+  }
+  if (r) return undefined; // existia mas expirou — precisa rebuscar
+  return undefined;        // não existe em nenhuma loja
 }
 function setFiscal(loja, plu, data) {
   stmtSetFis.run(loja, String(plu), JSON.stringify(data), now());

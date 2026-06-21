@@ -738,7 +738,89 @@ function renderDetalhe(d, idx) {
       </table>
     </div>` : '<div class="detail-box"><h4>Reforma</h4><div style="color:var(--muted);font-size:12px">Sem informações de NCM para projeção.</div></div>';
 
-  return `<tr class="row-detail" id="det-${idx}"><td colspan="15"><div class="detail-inner"><div class="detail-grid">${boxFiscalAtual}${boxAnterior}${boxReforma}</div></div></td></tr>`;
+  // ── Lucratividade no período (com e sem quebra) ───────────────────────────
+  const _vQtd       = d.total_vendas_periodo || 0;
+  const _recReal    = d.receita_periodo || 0;   // valor real das NFC-e da Hipcom
+  const _tqPct      = d.taxa_quebra || 0;
+  // Usa CMV (custo médio ponderado das NFs do período) se disponível; senão usa custo atual
+  const _cmvUnit    = d.fiscal_cmv?.custo_real || ca.custo_real || 0;
+  const _cmvHipcom  = d.custo_medio_ponderado || f.custo_hipcom || 0;
+  const _usouCMV    = !!d.fiscal_cmv;
+  const _custoReal  = _cmvUnit;  // agora é o custo real do período
+  const _impSaida   = (d.fiscal_cmv?.tot_imp_saida ?? ca.tot_imp_saida) || 0;
+  const _margSemQ   = d.fiscal_cmv?.margem_liquida ?? ca.margem_liquida;
+
+  // custo total do período = qty vendida × custo real unitário
+  const _custoTotalPer  = _vQtd * _custoReal;
+  const _impTotalPer    = _vQtd * _impSaida;
+  const _lucroPeriodoSemQ = _recReal > 0 && _vQtd > 0
+    ? _recReal - _custoTotalPer - _impTotalPer : null;
+  // margem real do período usando receita real
+  const _margRealPer = _recReal > 0 && _lucroPeriodoSemQ != null
+    ? (_lucroPeriodoSemQ / _recReal) * 100 : null;
+
+  // com quebra: custo efetivo por un vendida sobe (porque perdeu sem vender)
+  const _custoComQ    = _tqPct > 0 ? _custoReal * (1 + _tqPct / 100) : null;
+  const _custoTotComQ = _custoComQ != null ? _vQtd * _custoComQ : null;
+  const _lucroPeriodoComQ = _recReal > 0 && _custoTotComQ != null
+    ? _recReal - _custoTotComQ - _impTotalPer : null;
+  const _margComQ = _recReal > 0 && _lucroPeriodoComQ != null
+    ? (_lucroPeriodoComQ / _recReal) * 100 : null;
+  const _impactoQPP = (_margRealPer != null && _margComQ != null)
+    ? _margComQ - _margRealPer : null;
+
+  const boxQuebra = _vQtd > 0 && _recReal > 0 ? `
+    <div class="detail-box" style="border-color:${_tqPct>0?'rgba(245,158,11,.4)':'rgba(34,197,94,.3)'}">
+      <h4 style="color:${_tqPct>0?'var(--warn)':'var(--ok)'}">📊 Lucratividade no Período Analisado</h4>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+        Vendas: <strong style="color:var(--text)">${fmtQ(_vQtd)} un</strong>
+        &nbsp;·&nbsp; Receita real (NFC-e): <strong style="color:var(--text)">R$ ${R(_recReal)}</strong>
+      </div>
+
+      <!-- fonte do custo -->
+      <div style="font-size:10px;padding:5px 8px;border-radius:5px;margin-bottom:8px;background:${_usouCMV?'rgba(34,197,94,.1)':'rgba(245,158,11,.1)'};border:1px solid ${_usouCMV?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}">
+        ${_usouCMV
+          ? `✓ <strong>Custo médio ponderado das NFs do período</strong>: R$ ${R(_cmvHipcom)}/un — base exata para lucratividade`
+          : `⚠ Sem compras no período — usando custo atual da Hipcom (R$ ${R(_cmvHipcom)}/un) como aproximação`}
+      </div>
+
+      <!-- sem quebra -->
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Sem quebra</div>
+      <div class="detail-row"><span class="k">Receita real do período</span><span class="v">R$ ${R(_recReal)}</span></div>
+      <div class="detail-row"><span class="k">(−) Custo real CMV (${fmtQ(_vQtd)} un × R$ ${R(_custoReal)})</span><span class="v" style="color:var(--danger)">R$ ${R(_custoTotalPer)}</span></div>
+      <div class="detail-row"><span class="k">(−) Impostos saída</span><span class="v" style="color:var(--danger)">R$ ${R(_impTotalPer)}</span></div>
+      <div class="detail-row">
+        <span class="k"><strong>Lucro no período</strong></span>
+        <span class="v" style="color:${_lucroPeriodoSemQ>=0?'var(--ok)':'var(--danger)'}"><strong>R$ ${R(_lucroPeriodoSemQ)}</strong></span>
+      </div>
+      <div class="detail-row">
+        <span class="k"><strong>Margem real (sem quebra)</strong></span>
+        <span class="v" style="color:${margemColor(_margRealPer)};font-size:14px"><strong>${_margRealPer!=null?R(_margRealPer,1)+'%':'—'}</strong></span>
+      </div>
+
+      ${_tqPct > 0 ? `
+      <div class="detail-sep"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Com quebra (${R(_tqPct,2)}% de perda)</div>
+      <div class="detail-row"><span class="k">Custo efetivo / un vendida</span><span class="v" style="color:var(--warn)">R$ ${R(_custoComQ)}</span></div>
+      <div class="detail-row"><span class="k">(−) Custo total efetivo</span><span class="v" style="color:var(--danger)">R$ ${R(_custoTotComQ)}</span></div>
+      <div class="detail-row">
+        <span class="k"><strong>Lucro real (com quebra)</strong></span>
+        <span class="v" style="color:${_lucroPeriodoComQ>=0?'var(--ok)':'var(--danger)'}"><strong>R$ ${R(_lucroPeriodoComQ)}</strong></span>
+      </div>
+      <div class="detail-row">
+        <span class="k"><strong>Margem real (com quebra)</strong></span>
+        <span class="v" style="color:${margemColor(_margComQ)};font-size:14px"><strong>${_margComQ!=null?R(_margComQ,1)+'%':'—'}</strong></span>
+      </div>
+      <div class="margem-bar" style="margin-top:6px"><div class="margem-fill" style="width:${Math.min(100,Math.max(0,_margComQ||0))}%;background:${margemColor(_margComQ)}"></div></div>
+      <div style="margin-top:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:8px">
+        <div class="detail-row" style="margin:0"><span class="k">Impacto da quebra na margem</span><span class="v" style="color:var(--danger);font-weight:700">${_impactoQPP!=null?R(_impactoQPP,1)+' p.p.':'—'}</span></div>
+        <div class="detail-row" style="margin:0"><span class="k">Lucro perdido pela quebra</span><span class="v" style="color:var(--danger);font-weight:700">R$ ${R((_lucroPeriodoSemQ||0)-(_lucroPeriodoComQ||0))}</span></div>
+        ${_margComQ!=null&&_margComQ<30?`<div style="margin-top:6px;font-size:11px;color:var(--warn)">⚠ Margem abaixo de 30% considerando a quebra — revisar preço ou reduzir perda.</div>`:''}
+      </div>
+      ` : `<div style="margin-top:8px;font-size:11px;color:var(--ok)">✓ Sem quebra registrada no período.</div>`}
+    </div>` : '';
+
+  return `<tr class="row-detail" id="det-${idx}"><td colspan="15"><div class="detail-inner"><div class="detail-grid">${boxFiscalAtual}${boxQuebra}${boxAnterior}${boxReforma}</div></div></td></tr>`;
 }
 
 // ── Multi-loja selector ────────────────────────────────────────────────────

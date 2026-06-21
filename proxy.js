@@ -303,10 +303,11 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
     const fiscalMap = await loadFiscalBatch(lojaRef, plus, jid, 8, 35);
 
     // Carrega vendas, estoques e compras de cada loja
-    const vendasPorLoja  = {}; // lid → plu → { total, dias, valorTotal }
-    const estFimPorLoja  = {}; // lid → plu → qtd
-    const estIniPorLoja  = {}; // lid → plu → qtd
-    const comprasPorLoja = {}; // lid → plu → qtd
+    const vendasPorLoja      = {}; // lid → plu → { total, dias, valorTotal }
+    const estFimPorLoja      = {}; // lid → plu → qtd
+    const estIniPorLoja      = {}; // lid → plu → qtd
+    const comprasPorLoja     = {}; // lid → plu → qtd
+    const comprasValorPorLoja= {}; // lid → plu → { qtd, valor }
 
     jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
@@ -336,11 +337,15 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       (db.getEstoque(lid, dataInicio) || []).forEach(e => { estIniPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
       (db.getEstoque(lid, dataFim)    || []).forEach(e => { estFimPorLoja[lid][e.plu]  = parseFloat(e.quantidade_total || 0); });
 
-      comprasPorLoja[lid] = {};
+      comprasPorLoja[lid]      = {};
+      comprasValorPorLoja[lid] = {}; // plu → {qtd, valor} para custo médio ponderado
       for (const dt of datas) {
         (db.getCompras(lid, dt) || []).forEach(c => {
           if (!comprasPorLoja[lid][c.plu]) comprasPorLoja[lid][c.plu] = 0;
           comprasPorLoja[lid][c.plu] += parseFloat(c.quantidade_total || 0);
+          if (!comprasValorPorLoja[lid][c.plu]) comprasValorPorLoja[lid][c.plu] = { qtd: 0, valor: 0 };
+          comprasValorPorLoja[lid][c.plu].qtd   += parseFloat(c.quantidade_total || 0);
+          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0);
         });
       }
     }
@@ -397,12 +402,21 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
       // Agregado total
       // Vendas: só lojas de venda (exceto CD)
-      const vTotal     = porLoja.filter(l => l.loja !== LOJA_CD).reduce((s, l) => s + l.venda_total, 0);
+      const vTotal      = porLoja.filter(l => l.loja !== LOJA_CD).reduce((s, l) => s + l.venda_total, 0);
+      const receitaReal = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.valorTotal || 0), 0);
       const vDiasMedia = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.dias || 0), 0) / Math.max(lojaVenda.length, 1);
       // Estoque: todas as lojas (CD + lojas de venda)
       const estAtual  = porLoja.reduce((s, l) => s + l.estoque,    0);
       const estInicio = porLoja.reduce((s, l) => s + l.estoque_ini, 0);
       const totalCmp  = porLoja.reduce((s, l) => s + l.compras,    0);
+
+      // Custo médio ponderado do período (todas as lojas, valor real das NFs de entrada)
+      const cmpAgg = lojaIds.reduce((s, lid) => {
+        const c = comprasValorPorLoja[lid]?.[plu];
+        if (c) { s.qtd += c.qtd; s.valor += c.valor; }
+        return s;
+      }, { qtd: 0, valor: 0 });
+      const custoMedioPonderado = cmpAgg.qtd > 0 ? cmpAgg.valor / cmpAgg.qtd : null;
 
       const vendaMediaDia = diasAnalise > 0 ? vTotal / diasAnalise : 0;
       const quebraEst     = Math.max(0, estInicio + totalCmp - vTotal - estAtual);
@@ -430,6 +444,9 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       const valorPedido      = qtdComprarAposTf * custo;
       const recPrevista      = vendaMediaDia * diasAbast * preco;
       const lucroPrev        = vendaMediaDia * diasAbast * (preco - ca.custo_real - ca.tot_imp_saida);
+
+      // Custo real do período usando CMV (custo médio ponderado das NFs de entrada)
+      const caCmv = custoMedioPonderado ? calcLucroReal(custoMedioPonderado, preco, fRaw, ncmInfo) : null;
 
       const ml = ca.margem_liquida;
       let status = 'OK';
@@ -474,6 +491,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         qtd_comprar: +qtdComprarAposTf.toFixed(0),
         valor_pedido: +valorPedido.toFixed(2),
         receita_prevista: +recPrevista.toFixed(2), lucro_previsto: +lucroPrev.toFixed(2),
+        receita_periodo: +receitaReal.toFixed(2),
+        custo_medio_ponderado: custoMedioPonderado ? +custoMedioPonderado.toFixed(4) : null,
+        total_compras_valor: cmpAgg.valor > 0 ? +cmpAgg.valor.toFixed(2) : null,
+        fiscal_cmv: caCmv,
         recomenda_compra: recomendaCompra, status, alertas,
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
         fiscal: {
