@@ -15,6 +15,10 @@ const HIPCOM_USER = process.env.HIPCOM_USER || 'hipcomfull';
 const HIPCOM_PASS = process.env.HIPCOM_PASS || 'xFyXDciUvM2&$Le$qgpl';
 const AUTH        = 'Basic ' + Buffer.from(`${HIPCOM_USER}:${HIPCOM_PASS}`).toString('base64');
 const DIAS_HIST   = 90;
+// Lojas ativas: filtra quais lojas aparecem no sistema (env var ou todas)
+const LOJAS_ATIVAS = process.env.LOJAS_ATIVAS
+  ? process.env.LOJAS_ATIVAS.split(',').map(Number)
+  : null; // null = todas
 
 // ── Tabela NCM ─────────────────────────────────────────────────────────────
 let NCM_TABLE = {};
@@ -136,7 +140,7 @@ function dateRange(s, e) {
 async function loadLojas() {
   let d = db.getLojas();
   if (!d) { d = unwrap(await hGet('/api/hipcom/lojas')); db.setLojas(d); }
-  return d;
+  return LOJAS_ATIVAS ? d.filter(l => LOJAS_ATIVAS.includes(l.loja)) : d;
 }
 async function loadFornecedores() {
   let d = db.getFornecedores();
