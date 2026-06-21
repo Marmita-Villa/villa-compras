@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Villa Borghese — Sugestão de Compras</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0f1117;--card:#161820;--card2:#1a1d2e;--border:#23263a;
+      --accent:#7c6af7;--accent2:#a78bfa;
+      --text:#e2e8f0;--muted:#8892a4;
+      --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--info:#38bdf8;--purple:#a78bfa;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px}
+
+    /* ── Header ── */
+    header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:20px}
+    .logo{font-size:18px;font-weight:700;color:var(--accent2)}
+    .logo span{color:var(--muted);font-weight:400;font-size:13px;margin-left:10px}
+    .regime-badge{background:rgba(124,106,247,.18);color:var(--accent2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+
+    main{max-width:1700px;margin:0 auto;padding:20px 16px}
+
+    /* ── Painel ── */
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:18px}
+    .panel-title{font-size:13px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+    /* ── Form ── */
+    .form-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+    label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+    select,input[type=number]{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:14px;min-width:200px;outline:none}
+    select:focus,input:focus{border-color:var(--accent)}
+    button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s}
+    button:hover{opacity:.85}
+    button:disabled{opacity:.4;cursor:not-allowed}
+    .btn-sec{background:transparent;border:1px solid var(--border);color:var(--text)}
+
+    /* ── Progresso ── */
+    .progress-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+    .progress-overlay.show{display:flex}
+    .progress-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px 40px;width:480px;max-width:90vw;text-align:center}
+    .progress-box h3{font-size:16px;font-weight:700;color:var(--accent2);margin-bottom:6px}
+    .progress-etapa{font-size:12px;color:var(--muted);margin-bottom:20px;min-height:18px}
+    .progress-track{background:var(--border);border-radius:20px;height:10px;overflow:hidden;margin-bottom:12px}
+    .progress-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
+    .progress-pct{font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px}
+    .progress-sub{font-size:11px;color:var(--muted)}
+
+    /* ── Resumo do Pedido ── */
+    .pedido-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+    @media(max-width:900px){.pedido-grid{grid-template-columns:1fr 1fr}}
+    .pedido-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px}
+    .pedido-card h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+    .pedido-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)}
+    .pedido-row:last-child{border:none}
+    .pedido-row .lbl{color:var(--muted)}
+    .pedido-row .val{font-weight:600}
+    .pedido-total{font-size:22px;font-weight:800;color:var(--accent2);margin-top:8px}
+    .pedido-warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:#fcd34d;margin-top:10px}
+
+    /* ── Alertas topo ── */
+    .alertas-topo{display:none;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+    .alerta-card{border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;font-size:13px;border:1px solid}
+    .alerta-card.danger{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:#fca5a5}
+    .alerta-card.warn{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:#fcd34d}
+    .alerta-card.info{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:#7dd3fc}
+    .alerta-card .ico{font-size:18px;line-height:1}
+    .alerta-card .txt strong{display:block;margin-bottom:2px}
+
+    /* ── Summary cards ── */
+    .sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+    .sum-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+    .sum-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .sum-card .val{font-size:20px;font-weight:700}
+    .c-green{color:var(--ok)}.c-warn{color:var(--warn)}.c-red{color:var(--danger)}.c-purple{color:var(--purple)}.c-info{color:var(--info)}.c-muted{color:var(--muted)}
+
+    /* ── Reforma tributária ── */
+    .reforma-linha{display:flex;gap:0;overflow-x:auto;margin-bottom:18px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+    .reforma-ano{flex:1;min-width:110px;padding:12px;text-align:center;border-right:1px solid var(--border);position:relative}
+    .reforma-ano:last-child{border-right:none}
+    .reforma-ano.atual{background:rgba(124,106,247,.18)}
+    .reforma-ano.transicao{background:rgba(245,158,11,.07)}
+    .reforma-ano.pleno{background:rgba(34,197,94,.07)}
+    .reforma-ano .ano-num{font-size:15px;font-weight:700;color:var(--accent2);margin-bottom:4px}
+    .reforma-ano .ano-desc{font-size:10px;color:var(--muted);line-height:1.3}
+    .reforma-ano .ano-tag{font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;display:inline-block;margin-bottom:4px}
+    .tag-atual{background:rgba(124,106,247,.3);color:var(--purple)}
+    .tag-trans{background:rgba(245,158,11,.3);color:var(--warn)}
+    .tag-pleno{background:rgba(34,197,94,.3);color:var(--ok)}
+
+    /* ── Gráficos ── */
+    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+    @media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+    .chart-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px}
+    .chart-card h3{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+
+    /* ── Tabela ── */
+    .tbl-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 16px 0}
+    .search-in{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:13px;width:220px;outline:none}
+    .search-in:focus{border-color:var(--accent)}
+    .fbtn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500;cursor:pointer}
+    .fbtn.active{border-color:var(--accent);color:var(--accent2);background:rgba(124,106,247,.1)}
+    .tbl-wrap{overflow-x:auto;padding:0 0 8px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{position:sticky;top:0;z-index:1;background:#1a1d2e;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:9px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border)}
+    th.left,td.left{text-align:left}
+    td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+    tr:hover td{background:rgba(124,106,247,.06)}
+    tr.row-detail td{background:var(--card2);padding:0}
+    tr.row-detail .detail-inner{padding:16px 20px}
+
+    /* ── Badges ── */
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+    .b-ok{background:rgba(34,197,94,.15);color:var(--ok)}
+    .b-warn{background:rgba(245,158,11,.15);color:var(--warn)}
+    .b-danger{background:rgba(239,68,68,.15);color:var(--danger)}
+    .b-info{background:rgba(56,189,248,.15);color:var(--info)}
+    .b-muted{background:rgba(136,146,164,.1);color:var(--muted)}
+    .b-purple{background:rgba(124,106,247,.15);color:var(--purple)}
+    .b-mono{background:rgba(251,191,36,.12);color:#fcd34d}
+    .b-isento{background:rgba(34,197,94,.12);color:#86efac}
+    .b-st-rem{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+    .b-div{background:rgba(245,158,11,.2);color:#fcd34d;border:1px solid rgba(245,158,11,.4)}
+
+    /* ── Detalhe fiscal expandido ── */
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    @media(max-width:1100px){.detail-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:700px){.detail-grid{grid-template-columns:1fr}}
+    .detail-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px}
+    .detail-box h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;color:var(--muted)}
+    .detail-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;gap:8px}
+    .detail-row .k{color:var(--muted)}
+    .detail-row .v{font-weight:600;text-align:right}
+    .detail-sep{border-top:1px solid var(--border);margin:8px 0}
+    .margem-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px}
+    .margem-fill{height:100%;border-radius:4px;transition:width .4s}
+    .reforma-table{width:100%;border-collapse:collapse;font-size:11px}
+    .reforma-table th{background:var(--card2);color:var(--muted);padding:6px 8px;text-align:left;font-weight:600;border-bottom:1px solid var(--border)}
+    .reforma-table td{padding:5px 8px;border-bottom:1px solid var(--border)}
+    .reforma-table tr:last-child td{border:none}
+    .alerta-linha{display:flex;align-items:flex-start;gap:6px;font-size:11px;padding:6px 8px;border-radius:6px;margin-bottom:6px}
+    .alerta-linha.st_removida{background:rgba(239,68,68,.1);color:#fca5a5}
+    .alerta-linha.monofasico{background:rgba(251,191,36,.08);color:#fcd34d}
+    .alerta-linha.isento{background:rgba(34,197,94,.08);color:#86efac}
+    .alerta-linha.sem_ncm{background:rgba(136,146,164,.1);color:var(--muted)}
+    .alerta-linha.divergencia_cst{background:rgba(245,158,11,.1);color:#fcd34d}
+
+    .expand-btn{background:transparent;border:none;cursor:pointer;color:var(--accent2);font-size:16px;padding:2px 6px;border-radius:4px;line-height:1}
+    .expand-btn:hover{background:rgba(124,106,247,.2)}
+
+    /* ── Spinner ── */
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    #section-result{display:none}
+    .loading-msg{color:var(--muted);padding:40px;text-align:center}
+
+    /* ── Tabs ── */
+    .tabs-bar{display:flex;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+    .tab-nav{background:transparent;border:none;border-radius:0;color:var(--muted);padding:11px 22px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+    .tab-nav.active{color:var(--accent2);border-bottom-color:var(--accent);background:rgba(124,106,247,.07)}
+    .tab-nav:hover:not(.active){color:var(--text)}
+
+    /* ── Drop zone ── */
+    #drop-zone{border:2px dashed var(--border);border-radius:10px;padding:36px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+    #drop-zone:hover,#drop-zone.drag-over{border-color:var(--accent)!important;background:rgba(124,106,247,.04)}
+
+    /* ── Multi-loja selector ── */
+    .loja-ms{position:relative;min-width:260px}
+    .loja-ms-header{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--text);user-select:none}
+    .loja-ms-header:focus-within,.loja-ms-header:hover{border-color:var(--accent)}
+    .loja-ms-opts{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card2);border:1px solid var(--border);border-radius:8px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+    .loja-ms-opts.open{display:block}
+    .loja-ms-opt{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:13px;transition:background .1s}
+    .loja-ms-opt:hover{background:rgba(124,106,247,.1)}
+    .loja-ms-opt input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+    .loja-ms-sep{border-top:1px solid var(--border);margin:4px 0}
+
+    /* ── Badge transferência ── */
+    .b-transf{background:rgba(56,189,248,.12);color:var(--info);border:1px solid rgba(56,189,248,.3)}
+
+    /* ── Projeção pagamento ── */
+    .pagto-semana{padding:10px;border-radius:8px;margin-top:10px;font-size:12px}
+    .pagto-semana.ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#86efac}
+    .pagto-semana.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fcd34d}
+    .pagto-semana.danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+
+    /* ── Calendário CP ── */
+    .cal-day{border:1px solid var(--border);border-radius:6px;padding:5px 4px;text-align:center;min-height:54px}
+    .cal-day-num{font-size:10px;color:var(--muted)}
+    .cal-day-num.hoje{color:var(--accent2);font-weight:700}
+    .cal-day-val{font-size:9px;font-weight:700;margin-top:2px;line-height:1.2}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">🛒 Sugestão de Compras <span>Empório Villa Borghese</span></div>
+  </div>
+  <div class="regime-badge">LUCRO REAL · SP</div>
+</header>
+
+<!-- Overlay de progresso -->
+<div class="progress-overlay" id="prog-overlay">
+  <div class="progress-box">
+    <h3>🔍 Analisando fornecedor...</h3>
+    <div class="progress-etapa" id="prog-etapa">Iniciando...</div>
+    <div class="progress-pct" id="prog-pct">0%</div>
+    <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="progress-sub" id="prog-sub">Aguarde — buscando dados na Hipcom</div>
+  </div>
+</div>
+
+<main>
+
+  <!-- Tabs de navegação -->
+  <div class="tabs-bar">
+    <button class="tab-nav active" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
+    <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
+  </div>
+
+  <!-- Seção: Análise de Compras -->
+  <div id="section-analise">
+
+  <!-- Status do banco -->
+  <div id="banco-bar" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
+      <span id="banco-dot" style="width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0"></span>
+      <span id="banco-txt" style="font-size:12px;color:var(--muted)">Verificando banco local...</span>
+    </div>
+    <button class="btn-sec" style="font-size:12px;padding:6px 16px;white-space:nowrap" id="btn-sync" onclick="iniciarSync()">⟳ Sincronizar Banco</button>
+    <span style="font-size:11px;color:var(--muted)">90 dias · Lucro Real / SP</span>
+  </div>
+
+  <!-- Parâmetros -->
+  <div class="panel">
+    <div class="panel-title">📋 Parâmetros de Análise</div>
+    <div class="form-row">
+      <label>Unidades / Lojas
+        <div class="loja-ms" id="loja-ms">
+          <div class="loja-ms-header" onclick="toggleLojaMs(event)">
+            <span id="loja-ms-label">— carregando... —</span>
+            <span style="color:var(--muted);font-size:11px">▼</span>
+          </div>
+          <div class="loja-ms-opts" id="loja-ms-opts" onclick="event.stopPropagation()">
+            <div class="loja-ms-opt" onclick="toggleTodasLojas(event)">
+              <input type="checkbox" id="chk-todas-lojas" onclick="toggleTodasLojas(event)"> <strong>Todas as lojas (consolidado)</strong>
+            </div>
+            <div class="loja-ms-sep"></div>
+            <div id="loja-ms-lista"></div>
+          </div>
+        </div>
+      </label>
+      <label>Fornecedor
+        <select id="sel-forn"><option value="">— selecione as lojas —</option></select>
+      </label>
+      <label>Período de análise (dias)
+        <input type="number" id="inp-dias" value="30" min="1" max="365" style="min-width:110px"/>
+      </label>
+      <label>Dias de abastecimento
+        <input type="number" id="inp-abast" value="30" min="1" max="365" style="min-width:110px"/>
+      </label>
+      <label>Prazo pag. fornecedor (dias)
+        <input type="number" id="inp-prazo" value="28" min="1" max="180" style="min-width:110px" title="Prazo em dias até o vencimento do boleto"/>
+      </label>
+      <button id="btn-analisar" onclick="analisar()">Analisar</button>
+    </div>
+  </div>
+
+  <!-- Cronograma Reforma Tributária (fixo, sempre visível) -->
+  <div class="panel">
+    <div class="panel-title">📅 Cronograma Reforma Tributária — EC 132/2023 · LC 214/2025</div>
+    <div class="reforma-linha" id="cronograma-linha">
+      <div class="reforma-ano atual"><div class="ano-tag tag-atual">AGORA</div><div class="ano-num">2025</div><div class="ano-desc">ICMS·PIS·COFINS<br>ST conforme RICMS-SP</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">PILOTO</div><div class="ano-num">2026</div><div class="ano-desc">CBS 0,9% + IBS 0,1%<br>coexiste com atual</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">⚡ GRANDE MUDANÇA</div><div class="ano-num">2027</div><div class="ano-desc">CBS substitui<br>PIS/COFINS</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">TRANSIÇÃO</div><div class="ano-num">2029</div><div class="ano-desc">IBS 10%<br>ICMS –10%</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">TRANSIÇÃO</div><div class="ano-num">2030</div><div class="ano-desc">IBS 20%<br>ICMS –20%</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">TRANSIÇÃO</div><div class="ano-num">2031</div><div class="ano-desc">IBS 30%<br>ICMS –30%</div></div>
+      <div class="reforma-ano transicao"><div class="ano-tag tag-trans">TRANSIÇÃO</div><div class="ano-num">2032</div><div class="ano-desc">IBS 40%<br>ICMS –40%</div></div>
+      <div class="reforma-ano pleno"><div class="ano-tag tag-pleno">REGIME PLENO</div><div class="ano-num">2033</div><div class="ano-desc">IBS+CBS plenos<br>ICMS/ISS extintos</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">
+      ⚠️ Alimentos da <strong style="color:var(--ok)">Cesta Básica Nacional</strong>: alíquota zero (IBS+CBS). &nbsp;|&nbsp;
+      Demais alimentos: redução de 60% (~10,6% combinado). &nbsp;|&nbsp;
+      Bebidas alcoólicas: alíquota plena + Imposto Seletivo.
+    </div>
+  </div>
+
+  <!-- Resultado -->
+  <div id="section-result">
+
+    <!-- Alertas fiscais de atenção imediata -->
+    <div class="alertas-topo" id="alertas-topo"></div>
+
+    <!-- Cards resumo -->
+    <div class="sum-grid" id="sum-cards"></div>
+
+    <!-- Resumo do Pedido -->
+    <div class="panel" id="painel-pedido">
+      <div class="panel-title">🛒 Resumo do Pedido</div>
+      <div class="pedido-grid" id="pedido-grid"></div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-row">
+      <div class="chart-card"><h3>Distribuição de Margens Líquidas (%)</h3><canvas id="chart-margens" height="190"></canvas></div>
+      <div class="chart-card"><h3>Top 10 Valor de Pedido (R$)</h3><canvas id="chart-pedido" height="190"></canvas></div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div class="tbl-actions">
+        <input class="search-in" id="inp-busca" placeholder="Buscar produto / NCM..." oninput="filtrar()"/>
+        <button class="fbtn active" id="f-todos"    onclick="setF('todos')">Todos</button>
+        <button class="fbtn"        id="f-comprar"  onclick="setF('comprar')">Comprar</button>
+        <button class="fbtn"        id="f-transf"   onclick="setF('transf')">🔄 Transferir</button>
+        <button class="fbtn"        id="f-revisar"  onclick="setF('revisar')">⚠ Revisar Preço</button>
+        <button class="fbtn"        id="f-st"       onclick="setF('st')">🔴 ST Alterada</button>
+        <button class="fbtn"        id="f-ruptura"  onclick="setF('ruptura')">Ruptura</button>
+        <button class="fbtn"        id="f-semgiro"  onclick="setF('semgiro')">Sem Giro</button>
+        <div style="flex:1"></div>
+        <button class="btn-sec" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-sec" onclick="window.print()">🖨 Imprimir</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="left" style="width:30px"></th>
+              <th class="left">Produto</th>
+              <th class="left">NCM</th>
+              <th class="left">Regime Fiscal</th>
+              <th class="left">Alertas</th>
+              <th class="left">Status Compra</th>
+              <th>Estoque</th>
+              <th>Venda/dia</th>
+              <th>Custo Hipcom</th>
+              <th>Custo Real</th>
+              <th>Preço Venda</th>
+              <th>Margem %</th>
+              <th>Mín 30%</th>
+              <th>Qtd Sugerida</th>
+              <th>Transferir</th>
+              <th>Qtd Comprar</th>
+              <th>Valor Pedido</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /section-result -->
+
+  </div><!-- /section-analise -->
+
+  <!-- Seção: Fluxo de Caixa / Contas a Pagar -->
+  <div id="section-fluxo" style="display:none">
+
+    <!-- Painel de importação -->
+    <div class="panel">
+      <div class="panel-title">📤 Importar Calendário de Pagamentos (Hipcom)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        No Hipcom: <strong style="color:var(--text)">Financeiro → Relatórios → Calendário dos Pagamentos a Efetuar</strong> → Imprimir em arquivo TXT → Importar aqui (quinzenal ou mensal).
+      </p>
+      <div id="cp-status" style="font-size:12px;color:var(--muted);margin-bottom:14px">
+        <span>●</span> Verificando...
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone"
+           ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+           onclick="document.getElementById('file-input').click()">
+        <div style="font-size:36px;margin-bottom:10px">📂</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste o arquivo .txt aqui</div>
+        <div style="font-size:12px;color:var(--muted)">ou clique para selecionar · Exportado diretamente do Hipcom</div>
+        <input type="file" id="file-input" accept=".txt" style="display:none" onchange="handleFileSelect(this)">
+      </div>
+
+      <!-- Preview após leitura do arquivo -->
+      <div id="import-preview" style="display:none;margin-top:16px">
+        <div id="import-info"></div>
+        <div id="preview-table-wrap" style="margin-top:10px"></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button onclick="confirmarImport()">✓ Confirmar Importação</button>
+          <button class="btn-sec" onclick="cancelarImport()">✕ Cancelar</button>
+        </div>
+      </div>
+      <div id="import-status"></div>
+    </div>
+
+    <!-- Calendário visual -->
+    <div class="panel" id="panel-calendario" style="display:none">
+      <div class="panel-title">📅 Calendário de Pagamentos — Contas a Pagar</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:11px;color:var(--muted)">
+        <span><span style="background:rgba(34,197,94,.2);padding:2px 10px;border-radius:4px">■</span> Até R$ 20k</span>
+        <span><span style="background:rgba(245,158,11,.2);padding:2px 10px;border-radius:4px">■</span> R$ 20k–100k</span>
+        <span><span style="background:rgba(239,68,68,.25);padding:2px 10px;border-radius:4px">■</span> R$ 100k–200k</span>
+        <span><span style="background:rgba(239,68,68,.5);padding:2px 10px;border-radius:4px">■</span> Acima R$ 200k</span>
+      </div>
+      <div id="calendario-grid"></div>
+    </div>
+
+  </div><!-- /section-fluxo -->
+
+</main>
+
+<script>
+const API = 'http://localhost:3000';
+let DADOS = [];
+let filtroAtivo = 'todos';
+let expandidos = new Set();
+let chartM = null, chartP = null;
+
+// ── Utilitários ────────────────────────────────────────────────────────────
+const R  = (v,d=2) => v!=null ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
+const fmtQ = v => v!=null ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:3}) : '—';
+
+function statusBadge(s) {
+  const map = {
+    'OK':               ['b-ok',    'OK'],
+    'ESTOQUE OK':       ['b-ok',    'Estoque OK'],
+    'REVISAR PREÇO':    ['b-warn',  'Revisar Preço'],
+    'RUPTURA FREQUENTE':['b-purple','Ruptura Freq.'],
+    'SEM GIRO':         ['b-info',  'Sem Giro'],
+    'INATIVO':          ['b-muted', 'Inativo'],
+    'ABAIXO DO CUSTO':  ['b-danger','Abaixo Custo'],
+    'SEM CUSTO':        ['b-muted', 'Sem Custo'],
+  };
+  const [c,l] = map[s]||['b-muted',s];
+  return `<span class="badge ${c}">${l}</span>`;
+}
+
+function margemColor(m) {
+  if (m==null) return 'var(--muted)';
+  if (m<0)   return 'var(--danger)';
+  if (m<30)  return 'var(--warn)';
+  return 'var(--ok)';
+}
+
+function alertaBadges(alertas) {
+  if (!alertas || !alertas.length) return '';
+  return alertas.map(a => {
+    const map = {
+      ST_REMOVIDA:    ['b-st-rem','🔴 ST Removida'],
+      MONOFASICO:     ['b-mono','Monofásico'],
+      ISENTO:         ['b-isento','Isento'],
+      SEM_NCM:        ['b-muted','Sem NCM'],
+      DIVERGENCIA_CST:['b-div','⚠ CST Diverge'],
+      TRANSFERENCIA:  ['b-transf','🔄 Transferir'],
+    };
+    const [c,l] = map[a.tipo]||['b-muted',a.tipo];
+    return `<span class="badge ${c}" title="${(a.msg||'').replace(/"/g,"'")}">${l}</span>`;
+  }).join(' ');
+}
+
+function regimeBadge(ncm_info) {
+  if (!ncm_info) return '<span class="badge b-muted">?</span>';
+  const r = ncm_info.regime_pis_cofins;
+  const st = ncm_info.st_ativo && !ncm_info.st_removida;
+  const stRem = ncm_info.st_removida;
+  let out = '';
+  if (stRem)       out += '<span class="badge b-st-rem">ST Removida</span> ';
+  else if (st)     out += '<span class="badge b-info">ST Ativa</span> ';
+  if (r==='monofasico') out += '<span class="badge b-mono">Monofásico</span>';
+  else if (r==='isento') out += '<span class="badge b-isento">PIS/COF Isento</span>';
+  else                   out += '<span class="badge b-muted">Normal</span>';
+  return out || '<span class="badge b-muted">Normal</span>';
+}
+
+// ── Detalhe fiscal expandido ───────────────────────────────────────────────
+function renderDetalhe(d, idx) {
+  const f   = d.fiscal;
+  const ca  = f.cenario_atual;
+  const ant = f.cenario_anterior;
+  const ref = f.cenarios_reforma;
+  const ni  = f.ncm_info;
+
+  const boxFiscalAtual = `
+    <div class="detail-box">
+      <h4>💰 Cálculo Fiscal Atual — Lucro Real SP</h4>
+      <div class="detail-row"><span class="k">Regime PIS/COFINS</span><span class="v">${ni?ni.regime_pis_cofins:'—'}</span></div>
+      <div class="detail-row"><span class="k">ST ativa</span><span class="v">${ca.tem_st?'Sim (CST 60)':'Não'}</span></div>
+      <div class="detail-row"><span class="k">ICMS SP</span><span class="v">${ni?ni.aliq_icms+'%':'—'}</span></div>
+      <div class="detail-sep"></div>
+      <div class="detail-row"><span class="k">Custo Hipcom</span><span class="v">R$ ${R(f.custo_hipcom)}</span></div>
+      <div class="detail-row"><span class="k">(–) Créd. ICMS entrada</span><span class="v" style="color:var(--ok)">–R$ ${R(ca.cred_icms)}</span></div>
+      <div class="detail-row"><span class="k">(–) Créd. PIS entrada</span><span class="v" style="color:var(--ok)">–R$ ${R(ca.cred_pis)}</span></div>
+      <div class="detail-row"><span class="k">(–) Créd. COFINS entrada</span><span class="v" style="color:var(--ok)">–R$ ${R(ca.cred_cofins)}</span></div>
+      <div class="detail-sep"></div>
+      <div class="detail-row"><span class="k"><strong>= Custo Real</strong></span><span class="v"><strong>R$ ${R(ca.custo_real)}</strong></span></div>
+      <div class="detail-sep"></div>
+      <div class="detail-row"><span class="k">Preço de venda</span><span class="v">R$ ${R(f.preco_venda)}</span></div>
+      <div class="detail-row"><span class="k">(–) Déb. ICMS saída</span><span class="v" style="color:var(--danger)">–R$ ${R(ca.deb_icms)}</span></div>
+      <div class="detail-row"><span class="k">(–) Déb. PIS saída</span><span class="v" style="color:var(--danger)">–R$ ${R(ca.deb_pis)}</span></div>
+      <div class="detail-row"><span class="k">(–) Déb. COFINS saída</span><span class="v" style="color:var(--danger)">–R$ ${R(ca.deb_cofins)}</span></div>
+      <div class="detail-sep"></div>
+      <div class="detail-row">
+        <span class="k"><strong>Margem Líquida</strong></span>
+        <span class="v" style="color:${margemColor(ca.margem_liquida)};font-size:15px">
+          <strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong>
+        </span>
+      </div>
+      ${ca.margem_liquida!=null?`
+      <div class="margem-bar"><div class="margem-fill" style="width:${Math.min(100,Math.max(0,ca.margem_liquida))}%;background:${margemColor(ca.margem_liquida)}"></div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Meta: 30–35% &nbsp;|&nbsp; Preço mín 30%: <strong style="color:var(--warn)">R$ ${R(ca.preco_min_30)}</strong></div>
+      `:''}
+    </div>`;
+
+  const boxAnterior = ant ? `
+    <div class="detail-box" style="border-color:rgba(239,68,68,.4)">
+      <h4 style="color:#fca5a5">🔴 Cenário ANTES da Remoção da ST</h4>
+      <div style="font-size:11px;color:#fca5a5;margin-bottom:10px">Estimativa de como era o cálculo quando a ST estava ativa. Use para comparar o impacto real.</div>
+      <div class="detail-row"><span class="k">Custo estimado c/ ST</span><span class="v">R$ ${R(ant.custo_hipcom)}</span></div>
+      <div class="detail-row"><span class="k">Custo real (sem ST)</span><span class="v">R$ ${R(ant.custo_real)}</span></div>
+      <div class="detail-row"><span class="k">Total imp. saída (c/ ST)</span><span class="v">R$ ${R(ant.tot_imp_saida)}</span></div>
+      <div class="detail-sep"></div>
+      <div class="detail-row"><span class="k">Margem líquida antes</span><span class="v" style="color:${margemColor(ant.margem_liquida)}">${ant.margem_liquida!=null?R(ant.margem_liquida,1)+'%':'—'}</span></div>
+      <div class="detail-row"><span class="k"><strong>Margem líquida AGORA</strong></span><span class="v" style="color:${margemColor(ca.margem_liquida)}"><strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong></span></div>
+      <div class="detail-row"><span class="k">Variação de margem</span>
+        <span class="v" style="color:${ant.margem_liquida!=null&&ca.margem_liquida!=null&&(ca.margem_liquida-ant.margem_liquida)<0?'var(--danger)':'var(--ok)'}">
+          ${ant.margem_liquida!=null&&ca.margem_liquida!=null?(ca.margem_liquida-ant.margem_liquida>0?'+':'')+R(ca.margem_liquida-ant.margem_liquida,1)+'p.p.':'—'}
+        </span>
+      </div>
+      <div class="detail-sep"></div>
+      <div style="font-size:11px;color:#fca5a5">
+        ${(f.ncm_info&&f.ncm_info.st_portaria)?'📄 '+f.ncm_info.st_portaria:''}
+        ${(f.ncm_info&&f.ncm_info.st_data_remocao)?'&nbsp;· Vigência: '+f.ncm_info.st_data_remocao:''}
+      </div>
+    </div>` : `
+    <div class="detail-box">
+      <h4>📜 NCM · Portaria</h4>
+      ${ni?`
+      <div class="detail-row"><span class="k">NCM</span><span class="v">${d.ncm}</span></div>
+      <div class="detail-row"><span class="k">Categoria</span><span class="v">${ni.descricao||''}</span></div>
+      <div class="detail-row"><span class="k">ST em SP</span><span class="v">${ni.st_ativo?'Ativa':'Não se aplica'}</span></div>
+      ${ni.st_portaria?`<div class="detail-row"><span class="k">Portaria</span><span class="v" style="font-size:10px">${ni.st_portaria}</span></div>`:''}
+      `:'<div style="color:var(--muted);font-size:12px">NCM não mapeado ou não informado pela Hipcom.</div>'}
+      <div class="detail-sep"></div>
+      <div style="font-size:11px;color:var(--muted)">Alertas fiscais:</div>
+      <div style="margin-top:6px">
+        ${(d.alertas||[]).length ? d.alertas.map(a=>`<div class="alerta-linha ${a.tipo.toLowerCase()}"><span>ℹ</span><span>${a.msg}</span></div>`).join('') : '<div style="color:var(--ok);font-size:12px">✓ Sem alertas fiscais</div>'}
+      </div>
+    </div>`;
+
+  const anosRef = ref ? Object.entries(ref.cenarios) : [];
+  const boxReforma = ref ? `
+    <div class="detail-box" style="border-color:rgba(124,106,247,.4)">
+      <h4 style="color:var(--accent2)">📅 Impacto da Reforma Tributária</h4>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+        Categoria: <strong>${ref.categoria}</strong>
+        ${ref.cesta_basica?'<span class="badge b-ok" style="margin-left:4px">Cesta Básica — alíquota zero 2027+</span>':''}
+      </div>
+      <table class="reforma-table">
+        <thead><tr><th>Ano</th><th>Descrição</th><th>Custo Real</th><th>Imp. Saída</th><th>Margem %</th></tr></thead>
+        <tbody>
+          ${anosRef.map(([ano,c])=>`
+          <tr style="${ano==='2025'?'font-weight:600':''} ${c.margem!=null&&c.margem<30?'color:var(--warn)':''}">
+            <td><strong>${ano}</strong></td>
+            <td style="font-size:10px;color:var(--muted)">${c.descricao||''}</td>
+            <td>R$ ${R(c.custo_real)}</td>
+            <td>R$ ${R(c.tot_imp_saida)}</td>
+            <td style="color:${margemColor(c.margem)};font-weight:700">${c.margem!=null?R(c.margem,1)+'%':'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '<div class="detail-box"><h4>Reforma</h4><div style="color:var(--muted);font-size:12px">Sem informações de NCM para projeção.</div></div>';
+
+  return `<tr class="row-detail" id="det-${idx}"><td colspan="15"><div class="detail-inner"><div class="detail-grid">${boxFiscalAtual}${boxAnterior}${boxReforma}</div></div></td></tr>`;
+}
+
+// ── Multi-loja selector ────────────────────────────────────────────────────
+let todasLojas = [];
+
+function toggleLojaMs(e) {
+  e.stopPropagation();
+  document.getElementById('loja-ms-opts').classList.toggle('open');
+}
+document.addEventListener('click', () => {
+  document.getElementById('loja-ms-opts')?.classList.remove('open');
+});
+
+function getLojasSelecionadas() {
+  return todasLojas.filter(l => document.getElementById('chk-loja-' + l.loja)?.checked)
+    .map(l => l.loja);
+}
+
+function atualizarLabelLojas() {
+  const sel = getLojasSelecionadas();
+  const lbl = document.getElementById('loja-ms-label');
+  if (!sel.length) lbl.textContent = '— Selecione as lojas —';
+  else if (sel.length === todasLojas.length) lbl.textContent = `Todas as lojas (${sel.length})`;
+  else lbl.textContent = sel.map(id => {
+    const l = todasLojas.find(x => x.loja === id);
+    return l ? (l.fantasia || `Loja ${id}`).split(' ')[0] : id;
+  }).join(', ');
+
+  // fornecedores são carregados uma vez no init — não recarregar ao trocar loja
+
+  // Sincroniza checkbox "Todas"
+  document.getElementById('chk-todas-lojas').checked = sel.length === todasLojas.length && todasLojas.length > 0;
+}
+
+function toggleTodasLojas(e) {
+  if (e) e.stopPropagation();
+  const chkTodas = document.getElementById('chk-todas-lojas');
+  const todasMarcadas = todasLojas.every(l => document.getElementById('chk-loja-' + l.loja)?.checked);
+  const novoEstado = !todasMarcadas;
+  chkTodas.checked = novoEstado;
+  todasLojas.forEach(l => {
+    const chk = document.getElementById('chk-loja-' + l.loja);
+    if (chk) chk.checked = novoEstado;
+  });
+  atualizarLabelLojas();
+}
+
+async function carregarLojas() {
+  try {
+    const res  = await fetch(`${API}/api/lojas`);
+    const data = await res.json();
+    todasLojas = (Array.isArray(data) ? data : []).filter(l => l.cnpj > 0);
+    const lista = document.getElementById('loja-ms-lista');
+    lista.innerHTML = todasLojas.map(l => {
+      const nome = l.fantasia || l.razao || `Loja ${l.loja}`;
+      return `<div class="loja-ms-opt">
+        <input type="checkbox" id="chk-loja-${l.loja}" value="${l.loja}" autocomplete="off" onchange="atualizarLabelLojas()">
+        <span>${l.loja} — ${nome} <span style="color:var(--muted);font-size:11px">${l.municipio||''}</span></span>
+      </div>`;
+    }).join('');
+    // Garante que nenhum checkbox fica marcado (browser pode restaurar estado anterior)
+    todasLojas.forEach(l => {
+      const chk = document.getElementById('chk-loja-' + l.loja);
+      if (chk) chk.checked = false;
+    });
+    document.getElementById('chk-todas-lojas').checked = false;
+    document.getElementById('loja-ms-label').textContent = '— Selecione as lojas —';
+  } catch(e) {
+    document.getElementById('loja-ms-label').textContent = 'Erro ao carregar lojas';
+  }
+}
+
+// ── Carrega fornecedores ───────────────────────────────────────────────────
+let _fornCache = null; // cache em memória para não repetir fetch na mesma sessão
+async function carregarFornecedores(lojaId) {
+  const sel = document.getElementById('sel-forn');
+  try {
+    if (!_fornCache) {
+      const res  = await fetch(`${API}/api/fornecedores`);
+      _fornCache = await res.json();
+    }
+    const lista = (Array.isArray(_fornCache) ? _fornCache : [])
+      .filter(f => f.codigo > 0 && (f.razao || f.fantasia))
+      .sort((a,b) => (a.fantasia||a.razao||'').localeCompare(b.fantasia||b.razao||''));
+
+    // Monta HTML de uma vez só (innerHTML += em loop trava o browser com centenas de itens)
+    sel.innerHTML = '<option value="">— Selecione o Fornecedor —</option>' +
+      lista.map(f => {
+        const nome = (f.fantasia && f.fantasia.trim()) || f.razao || `Fornecedor ${f.codigo}`;
+        return `<option value="${f.codigo}">${nome}</option>`;
+      }).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">Erro ao carregar fornecedores</option>';
+  }
+}
+
+// ── Analisar com barra de progresso ───────────────────────────────────────
+let pollTimer = null;
+
+async function analisar() {
+  const lojas  = getLojasSelecionadas();
+  const id     = document.getElementById('sel-forn').value;
+  const dias   = parseInt(document.getElementById('inp-dias').value)||30;
+  const abast  = parseInt(document.getElementById('inp-abast').value)||30;
+  if (!lojas.length) { alert('Selecione ao menos uma unidade/loja.'); return; }
+  if (!id)           { alert('Selecione um fornecedor.');  return; }
+
+  const btn = document.getElementById('btn-analisar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Iniciando…';
+  document.getElementById('section-result').style.display = 'none';
+
+  // Abre overlay de progresso
+  abrirProgresso();
+
+  try {
+    // 1. Inicia job
+    const startRes = await fetch(`${API}/api/analise/iniciar?lojas=${lojas.join(',')}&id=${encodeURIComponent(id)}&dias=${dias}&dias_abast=${abast}`);
+    const { jobId, erro: erroInicio } = await startRes.json();
+    if (erroInicio) throw new Error(erroInicio);
+
+    // 2. Fica consultando progresso a cada 600ms
+    await new Promise((resolve, reject) => {
+      pollTimer = setInterval(async () => {
+        try {
+          const pRes = await fetch(`${API}/api/analise/progresso?job=${jobId}`);
+          const p    = await pRes.json();
+          atualizarProgresso(p.pct, p.etapa, p.totalProdutos);
+          if (p.done || p.erro) {
+            clearInterval(pollTimer);
+            if (p.erro) reject(new Error(p.erro));
+            else resolve(jobId);
+          }
+        } catch(e) { clearInterval(pollTimer); reject(e); }
+      }, 600);
+    });
+
+    // 3. Busca resultado
+    atualizarProgresso(100, 'Montando resultado...');
+    const rRes = await fetch(`${API}/api/analise/resultado?job=${jobId}`);
+    const data = await rRes.json();
+    if (!Array.isArray(data)) throw new Error(data.erro || 'Resposta inesperada');
+
+    DADOS = data;
+    expandidos.clear();
+    fecharProgresso();
+    renderizar();
+
+  } catch(e) {
+    fecharProgresso();
+    alert('Erro na análise: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analisar';
+  }
+}
+
+function abrirProgresso() {
+  document.getElementById('prog-overlay').classList.add('show');
+  atualizarProgresso(0, 'Iniciando...');
+}
+
+function fecharProgresso() {
+  document.getElementById('prog-overlay').classList.remove('show');
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function atualizarProgresso(pct, etapa, totalProd) {
+  document.getElementById('prog-fill').style.width  = pct + '%';
+  document.getElementById('prog-pct').textContent   = pct + '%';
+  document.getElementById('prog-etapa').textContent = etapa || '';
+  const sub = totalProd ? `${totalProd} produtos deste fornecedor` : 'Buscando dados na Hipcom...';
+  document.getElementById('prog-sub').textContent = sub;
+}
+
+function renderizar() {
+  document.getElementById('section-result').style.display = '';
+  filtroAtivo = 'todos';
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('f-todos').classList.add('active');
+  document.getElementById('inp-busca').value = '';
+  renderAlertas();
+  renderCards();
+  renderPedido();
+  renderCharts(DADOS);
+  renderTabela(DADOS);
+}
+
+// ── Resumo do Pedido ───────────────────────────────────────────────────────
+let calDados = null; // dados do calendário de pagamentos (carregado no init)
+
+async function renderPedido() {
+  if (!calDados) await carregarCalDados(); // carrega lazily se não foi carregado antes
+  const comprar   = DADOS.filter(d => d.recomenda_compra);
+  const revisar   = DADOS.filter(d => d.status === 'REVISAR PREÇO');
+  const stRem     = DADOS.filter(d => d.alertas && d.alertas.some(a => a.tipo === 'ST_REMOVIDA'));
+  const ruptura   = DADOS.filter(d => d.status === 'RUPTURA FREQUENTE');
+  const semGiro   = DADOS.filter(d => d.status === 'SEM GIRO' || d.status === 'INATIVO');
+  const estoqOk   = DADOS.filter(d => d.status === 'ESTOQUE OK');
+  const comTransf = DADOS.filter(d => d.transferencias && d.transferencias.length);
+
+  const valorTotal   = comprar.reduce((s,d) => s + d.valor_pedido,     0);
+  const receitaTotal = comprar.reduce((s,d) => s + d.receita_prevista, 0);
+  const lucroTotal   = comprar.reduce((s,d) => s + d.lucro_previsto,   0);
+  const margemMedia  = comprar.length && receitaTotal > 0 ? lucroTotal / receitaTotal * 100 : null;
+
+  // ── Projeção de pagamento ──────────────────────────────────────────────
+  const prazo       = parseInt(document.getElementById('inp-prazo').value) || 28;
+  const dtVenc      = new Date(); dtVenc.setDate(dtVenc.getDate() + prazo);
+  const dtVencStr   = dtVenc.toISOString().slice(0,10);
+  const dtVencFmt   = formatarDataLocal(dtVencStr);
+
+  // Semana do vencimento (seg–dom)
+  const dow         = dtVenc.getDay(); // 0=dom
+  const dtSegStr    = (() => { const d = new Date(dtVenc); d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); return d.toISOString().slice(0,10); })();
+  const dtDomStr    = (() => { const d = new Date(dtVenc); d.setDate(d.getDate() + (dow === 0 ? 0 : 7 - dow)); return d.toISOString().slice(0,10); })();
+
+  let cargaSemana = 0;
+  if (calDados && calDados.lancamentos) {
+    calDados.lancamentos.filter(l => l.data >= dtSegStr && l.data <= dtDomStr)
+      .forEach(l => { cargaSemana += (l.valor_l || 0) + (l.valor_p || 0); });
+  }
+  const totalSemComPedido = cargaSemana + valorTotal;
+  const nivelSemana = totalSemComPedido < 100000 ? 'ok' : totalSemComPedido < 300000 ? 'warn' : 'danger';
+  const nivelTxt    = nivelSemana === 'ok' ? '✅ Semana tranquila' : nivelSemana === 'warn' ? '⚠️ Semana moderada' : '🔴 Semana sobrecarregada';
+  const semCalStr   = calDados && calDados.lancamentos && calDados.lancamentos.length
+    ? `Carga atual semana: R$ ${R(cargaSemana)} + pedido R$ ${R(valorTotal)} = <strong>R$ ${R(totalSemComPedido)}</strong>`
+    : `<span style="color:var(--muted)">Sem dados do calendário — importe o TXT do Hipcom na aba Fluxo de Caixa</span>`;
+
+  const grid = document.getElementById('pedido-grid');
+  grid.innerHTML = `
+    <!-- Box 1: Financeiro -->
+    <div class="pedido-card">
+      <h4>💰 Financeiro do Pedido</h4>
+      <div class="pedido-row"><span class="lbl">Itens a comprar</span><span class="val c-green">${comprar.length} produtos</span></div>
+      <div class="pedido-row"><span class="lbl">Valor total do pedido</span><span class="val" style="color:var(--accent2)">R$ ${R(valorTotal)}</span></div>
+      <div class="pedido-row"><span class="lbl">Receita prevista (${document.getElementById('inp-abast').value}d)</span><span class="val">R$ ${R(receitaTotal)}</span></div>
+      <div class="pedido-row"><span class="lbl">Lucro líquido previsto</span><span class="val ${lucroTotal>=0?'c-green':'c-red'}">R$ ${R(lucroTotal)}</span></div>
+      <div class="pedido-row"><span class="lbl">Margem líquida média</span>
+        <span class="val" style="color:${margemMedia==null?'var(--muted)':margemMedia>=30?'var(--ok)':margemMedia>=0?'var(--warn)':'var(--danger)'}">
+          ${margemMedia!=null?R(margemMedia,1)+'%':'—'}
+        </span>
+      </div>
+    </div>
+
+    <!-- Box 2: Situação dos produtos -->
+    <div class="pedido-card">
+      <h4>📊 Situação dos Produtos</h4>
+      <div class="pedido-row"><span class="lbl">✅ Comprar agora</span><span class="val c-green">${comprar.length}</span></div>
+      <div class="pedido-row"><span class="lbl">🔄 Com sugestão de transferência</span><span class="val c-info">${comTransf.length}</span></div>
+      <div class="pedido-row"><span class="lbl">📦 Estoque suficiente</span><span class="val c-info">${estoqOk.length}</span></div>
+      <div class="pedido-row"><span class="lbl">⚠️ Revisar preço antes</span><span class="val c-warn">${revisar.length}</span></div>
+      <div class="pedido-row"><span class="lbl">🔴 Ruptura frequente</span><span class="val c-red">${ruptura.length}</span></div>
+      <div class="pedido-row"><span class="lbl">💤 Sem giro / Inativo</span><span class="val c-muted">${semGiro.length}</span></div>
+      ${stRem.length ? `<div class="pedido-warn">🔴 ${stRem.length} produto(s) com ST removida — verifique o custo antes de confirmar!</div>` : ''}
+    </div>
+
+    <!-- Box 3: Projeção de pagamento -->
+    <div class="pedido-card">
+      <h4>📅 Projeção de Pagamento</h4>
+      <div class="pedido-row"><span class="lbl">Prazo do fornecedor</span><span class="val">${prazo} dias</span></div>
+      <div class="pedido-row"><span class="lbl">Vencimento estimado</span><span class="val c-purple">${dtVencFmt}</span></div>
+      <div class="pedido-row"><span class="lbl">Semana</span><span class="val" style="font-size:11px">${formatarDataLocal(dtSegStr)} a ${formatarDataLocal(dtDomStr)}</span></div>
+      <div class="pagto-semana ${nivelSemana}">
+        <strong>${nivelTxt}</strong><br>
+        <span style="font-size:11px">${semCalStr}</span>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+        Use <strong>Fluxo de Caixa</strong> para ver o calendário completo. O prazo pode ser ajustado no campo acima.
+      </div>
+    </div>
+
+    <!-- Box 4: Antes de fechar -->
+    <div class="pedido-card">
+      <h4>📋 Antes de Fechar o Pedido</h4>
+      ${comTransf.length ? `
+      <div class="pedido-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <span class="lbl" style="color:var(--info)">🔄 Verifique transferência entre lojas primeiro:</span>
+        <div style="margin-top:4px;max-height:70px;overflow-y:auto;width:100%">
+          ${comTransf.slice(0,4).map(d=>`<div style="font-size:11px;color:var(--info);padding:2px 0">${(d.nome||'').slice(0,28)} — ${d.transferencias.map(t=>`Loja ${t.de_loja}: ${fmtQ(t.qtd)} un.`).join(', ')}</div>`).join('')}
+          ${comTransf.length>4?`<div style="font-size:10px;color:var(--muted)">...e mais ${comTransf.length-4}</div>`:''}
+        </div>
+      </div>` : ''}
+      ${revisar.length ? `
+      <div class="pedido-row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px">
+        <span class="lbl">⚠️ Margem abaixo de 30%:</span>
+        <div style="margin-top:4px;max-height:70px;overflow-y:auto;width:100%">
+          ${revisar.slice(0,4).map(d=>`<div style="font-size:11px;color:var(--warn);padding:2px 0">${(d.nome||'').slice(0,28)} — ${R(d.fiscal.cenario_atual.margem_liquida,1)}% / Mín R$ ${R(d.fiscal.cenario_atual.preco_min_30)}</div>`).join('')}
+        </div>
+      </div>` : '<div class="pedido-row" style="margin-top:6px"><span class="lbl">✅ Margens adequadas em todos os itens</span></div>'}
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.5">
+        Filtre por <strong style="color:var(--info)">Transferência</strong>, <strong style="color:var(--warn)">Revisar Preço</strong> ou <strong style="color:#fca5a5">ST Alterada</strong> na tabela.
+      </div>
+    </div>
+  `;
+}
+
+function formatarDataLocal(iso) {
+  if (!iso) return '—';
+  const [a,m,d] = iso.split('-');
+  return `${d}/${m}/${a}`;
+}
+
+// ── Alertas topo ───────────────────────────────────────────────────────────
+function renderAlertas() {
+  const stRem  = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='ST_REMOVIDA'));
+  const divCST = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='DIVERGENCIA_CST'));
+  const semNCM = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='SEM_NCM'));
+  const el = document.getElementById('alertas-topo');
+  let html = '';
+  if (stRem.length) html += `<div class="alerta-card danger"><div class="ico">🔴</div><div class="txt"><strong>${stRem.length} produto(s) com ST REMOVIDA</strong>O regime fiscal mudou — o custo de compra e a margem podem estar incorretos. Expanda cada produto para ver o impacto real.</div></div>`;
+  if (divCST.length) html += `<div class="alerta-card warn"><div class="ico">⚠️</div><div class="txt"><strong>${divCST.length} produto(s) com divergência de CST</strong>O CST registrado na Hipcom não confere com a tabela NCM. Verifique com o contador.</div></div>`;
+  if (semNCM.length) html += `<div class="alerta-card info"><div class="ico">ℹ️</div><div class="txt"><strong>${semNCM.length} produto(s) sem NCM cadastrado</strong>Sem NCM não é possível validar o regime fiscal. Cadastre o NCM na Hipcom.</div></div>`;
+  el.innerHTML = html;
+  el.style.display = html ? 'flex' : 'none';
+}
+
+// ── Cards resumo ───────────────────────────────────────────────────────────
+function renderCards() {
+  const total   = DADOS.length;
+  const comprar = DADOS.filter(d=>d.qtd_sugerida>0).length;
+  const valor   = DADOS.reduce((s,d)=>s+(d.valor_pedido||0),0);
+  const revisar = DADOS.filter(d=>d.status==='REVISAR PREÇO').length;
+  const stRem   = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='ST_REMOVIDA')).length;
+  const ruptura = DADOS.filter(d=>d.status==='RUPTURA FREQUENTE').length;
+  const mls     = DADOS.map(d=>d.fiscal.cenario_atual.margem_liquida).filter(v=>v!=null);
+  const mlMedia = mls.length ? mls.reduce((s,v)=>s+v,0)/mls.length : null;
+
+  const transf = DADOS.filter(d=>d.transferencias&&d.transferencias.length>0).length;
+  const lojas  = DADOS[0]?.lojas_analise || [];
+  document.getElementById('sum-cards').innerHTML = `
+    <div class="sum-card"><div class="lbl">Produtos</div><div class="val c-purple">${total}</div></div>
+    <div class="sum-card"><div class="lbl">Itens p/ Comprar</div><div class="val c-green">${comprar}</div></div>
+    <div class="sum-card"><div class="lbl">🔄 Transferir</div><div class="val ${transf?'c-info':'c-green'}">${transf}</div></div>
+    <div class="sum-card"><div class="lbl">Valor Total Pedido</div><div class="val c-purple">R$ ${R(valor)}</div></div>
+    <div class="sum-card"><div class="lbl">Margem Média</div><div class="val ${mlMedia==null?'':mlMedia>=30?'c-green':mlMedia>=0?'c-warn':'c-red'}">${mlMedia!=null?R(mlMedia,1)+'%':'—'}</div></div>
+    <div class="sum-card"><div class="lbl">⚠ Revisar Preço</div><div class="val ${revisar?'c-warn':'c-green'}">${revisar}</div></div>
+    <div class="sum-card"><div class="lbl">🔴 ST Alterada</div><div class="val ${stRem?'c-red':'c-green'}">${stRem}</div></div>
+    <div class="sum-card"><div class="lbl">Ruptura Frequente</div><div class="val ${ruptura?'c-red':'c-green'}">${ruptura}</div></div>
+    ${lojas.length>1?`<div class="sum-card"><div class="lbl">Lojas Consolidadas</div><div class="val c-info">${lojas.join(', ')}</div></div>`:''}
+  `;
+}
+
+// ── Gráficos ───────────────────────────────────────────────────────────────
+function renderCharts(dados) {
+  const faixas = {'Abaixo 0%':0,'0–15%':0,'15–30%':0,'30–35%':0,'>35%':0,'N/D':0};
+  dados.forEach(d=>{
+    const m = d.fiscal.cenario_atual.margem_liquida;
+    if (m==null) faixas['N/D']++;
+    else if (m<0) faixas['Abaixo 0%']++;
+    else if (m<15) faixas['0–15%']++;
+    else if (m<30) faixas['15–30%']++;
+    else if (m<35) faixas['30–35%']++;
+    else faixas['>35%']++;
+  });
+  if (chartM) chartM.destroy();
+  chartM = new Chart(document.getElementById('chart-margens'),{
+    type:'doughnut',
+    data:{labels:Object.keys(faixas),datasets:[{data:Object.values(faixas),backgroundColor:['#ef4444','#f59e0b','#fbbf24','#22c55e','#16a34a','#64748b'],borderWidth:0}]},
+    options:{plugins:{legend:{labels:{color:'#8892a4',font:{size:11}}}}},
+  });
+  const top10 = [...dados].filter(d=>d.valor_pedido>0).sort((a,b)=>b.valor_pedido-a.valor_pedido).slice(0,10);
+  if (chartP) chartP.destroy();
+  chartP = new Chart(document.getElementById('chart-pedido'),{
+    type:'bar',
+    data:{labels:top10.map(d=>(d.nome||d.codigo||'').slice(0,22)),datasets:[{data:top10.map(d=>d.valor_pedido),backgroundColor:'#7c6af7',borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#23263a'}},y:{ticks:{color:'#e2e8f0',font:{size:10}},grid:{display:false}}}},
+  });
+}
+
+// ── Tabela ─────────────────────────────────────────────────────────────────
+function renderTabela(dados) {
+  const tbody = document.getElementById('tbody');
+  if (!dados.length) {
+    tbody.innerHTML = '<tr><td colspan="15" class="loading-msg">Nenhum produto encontrado.</td></tr>';
+    return;
+  }
+  let html = '';
+  dados.forEach((d,i)=>{
+    const ca = d.fiscal.cenario_atual;
+    const ni = d.fiscal.ncm_info;
+    const expanded = expandidos.has(i);
+    html += `<tr>
+      <td class="left"><button class="expand-btn" onclick="toggleDetalhe(${i})" title="Ver cálculo fiscal">${expanded?'▲':'▼'}</button></td>
+      <td class="left" title="${d.nome}">${(d.nome||'').slice(0,36)}</td>
+      <td class="left" style="font-size:11px;color:var(--muted)">${d.ncm||'—'}</td>
+      <td class="left">${regimeBadge(ni)}</td>
+      <td class="left">${alertaBadges(d.alertas)}</td>
+      <td class="left">${statusBadge(d.status)}</td>
+      <td>${fmtQ(d.estoque_atual)}</td>
+      <td>${fmtQ(d.venda_media_diaria)}</td>
+      <td>R$ ${R(d.fiscal.custo_hipcom)}</td>
+      <td>R$ ${R(ca.custo_real)}</td>
+      <td>R$ ${R(d.fiscal.preco_venda)}</td>
+      <td style="color:${margemColor(ca.margem_liquida)};font-weight:700">${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</td>
+      <td style="color:var(--warn)">${ca.preco_min_30?'R$ '+R(ca.preco_min_30):'—'}</td>
+      <td><strong>${d.qtd_sugerida>0?fmtQ(d.qtd_sugerida):'—'}</strong></td>
+      <td style="color:var(--info)">${d.qtd_transferencia>0?`🔄 ${fmtQ(d.qtd_transferencia)}`:'—'}</td>
+      <td><strong style="color:${d.qtd_comprar>0?'var(--ok)':'var(--muted)'}">${d.qtd_comprar>0?fmtQ(d.qtd_comprar):'—'}</strong></td>
+      <td>${d.valor_pedido>0?'<strong>R$ '+R(d.valor_pedido)+'</strong>':'—'}</td>
+    </tr>`;
+    if (expanded) html += renderDetalhe(d, i);
+  });
+  tbody.innerHTML = html;
+}
+
+function toggleDetalhe(idx) {
+  if (expandidos.has(idx)) expandidos.delete(idx);
+  else expandidos.add(idx);
+  filtrar();
+}
+
+// ── Filtros ────────────────────────────────────────────────────────────────
+function setF(f) {
+  filtroAtivo = f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('f-'+f).classList.add('active');
+  filtrar();
+}
+
+function filtrar() {
+  const busca = document.getElementById('inp-busca').value.toLowerCase();
+  let d = DADOS;
+  if (filtroAtivo==='comprar')  d = d.filter(x=>x.qtd_sugerida>0);
+  if (filtroAtivo==='transf')   d = d.filter(x=>x.transferencias&&x.transferencias.length>0);
+  if (filtroAtivo==='revisar')  d = d.filter(x=>x.status==='REVISAR PREÇO');
+  if (filtroAtivo==='st')       d = d.filter(x=>x.alertas&&x.alertas.some(a=>a.tipo==='ST_REMOVIDA'||a.tipo==='DIVERGENCIA_CST'));
+  if (filtroAtivo==='ruptura')  d = d.filter(x=>x.status==='RUPTURA FREQUENTE');
+  if (filtroAtivo==='semgiro')  d = d.filter(x=>x.status==='SEM GIRO'||x.status==='INATIVO');
+  if (busca) d = d.filter(x=>(x.nome||'').toLowerCase().includes(busca)||(x.ncm||'').includes(busca)||(String(x.plu||'')).includes(busca)||(x.departamento||'').toLowerCase().includes(busca));
+  renderTabela(d);
+}
+
+// ── CSV ─────────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const cols = ['Produto','NCM','Regime PIS/COFINS','ST Ativa','ST Removida','Alerta Fiscal','Status','Estoque','Venda/dia','Custo Hipcom','Custo Real','Preço Venda','Margem %','Preço Mín 30%','Qtd Sugerida','Valor Pedido'];
+  const linhas = DADOS.map(d=>{
+    const ca = d.fiscal.cenario_atual;
+    const ni = d.fiscal.ncm_info;
+    const alertaTxt = (d.alertas||[]).map(a=>a.tipo).join('; ');
+    return [
+      `"${(d.nome||'').replace(/"/g,'""')}"`,
+      d.ncm||'',
+      ni?ni.regime_pis_cofins:'',
+      ni?String(ni.st_ativo):'',
+      ni?String(ni.st_removida):'',
+      `"${alertaTxt.replace(/"/g,'""')}"`,
+      `"${d.status}"`,
+      d.estoque_atual,
+      d.venda_media_diaria,
+      d.fiscal.custo_hipcom,
+      ca.custo_real,
+      d.fiscal.preco_venda,
+      ca.margem_liquida,
+      ca.preco_min_30||'',
+      d.qtd_sugerida,
+      d.valor_pedido,
+    ].join(';');
+  });
+  const csv = '﻿' + cols.join(';') + '\n' + linhas.join('\n');
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),download:`compras_${new Date().toISOString().slice(0,10)}.csv`});
+  a.click();
+}
+
+// ── Status do banco ────────────────────────────────────────────────────────
+async function atualizarStatusBanco() {
+  try {
+    const s = await fetch(`${API}/api/banco/status`).then(r => r.json());
+    const dot = document.getElementById('banco-dot');
+    const txt = document.getElementById('banco-txt');
+    if (s.diasHistorico > 0) {
+      dot.style.background = 'var(--ok)';
+      txt.textContent = `Banco local: ${s.diasHistorico} dias de histórico (${s.minVenda} → ${s.maxVenda}) · Fiscal: ${s.fiscal} produtos`;
+      txt.style.color = 'var(--text)';
+    } else {
+      dot.style.background = 'var(--warn)';
+      txt.textContent = 'Banco vazio — clique em "Sincronizar Banco" para popular os dados (só na 1ª vez)';
+      txt.style.color = 'var(--warn)';
+    }
+  } catch(e) {
+    document.getElementById('banco-txt').textContent = 'Erro ao verificar banco: ' + e.message;
+  }
+}
+
+let syncPollTimer = null;
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('section-analise').style.display = tab === 'analise' ? '' : 'none';
+  document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
+  document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
+  document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
+  if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
+}
+
+// ── Utilitários CP ─────────────────────────────────────────────────────────
+function formatarData(iso) {
+  if (!iso) return '—';
+  const [a,m,d] = iso.split('-');
+  return `${d}/${m}/${a}`;
+}
+function fmtK(v) {
+  if (v >= 1000000) return (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return Math.round(v/1000) + 'k';
+  return R(v, 0);
+}
+function valorCorCP(v) {
+  if (!v || v <= 0)  return 'var(--muted)';
+  if (v < 20000)     return 'var(--ok)';
+  if (v < 100000)    return 'var(--warn)';
+  return 'var(--danger)';
+}
+function bgCorCP(v) {
+  if (!v || v <= 0)  return 'transparent';
+  if (v < 20000)     return 'rgba(34,197,94,.15)';
+  if (v < 100000)    return 'rgba(245,158,11,.2)';
+  if (v < 200000)    return 'rgba(239,68,68,.25)';
+  return 'rgba(239,68,68,.5)';
+}
+
+// ── Parser TXT Hipcom ──────────────────────────────────────────────────────
+function parseTxtHipcom(text) {
+  const MESES = {
+    'JANEIRO':1,'FEVEREIRO':2,'MARCO':3,'MARCO':3,'ABRIL':4,'MAIO':5,'JUNHO':6,
+    'JULHO':7,'AGOSTO':8,'SETEMBRO':9,'OUTUBRO':10,'NOVEMBRO':11,'DEZEMBRO':12,
+    // com acentos (caso Windows-1252 seja corretamente decodificado)
+    'MARÇO':3,'NOVEMBRO':11,
+  };
+  const lines = text.split('\n');
+  let mes = 0, ano = 0, lojas = '';
+  const lancamentos = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Lojas:1,2,6
+    const lm = line.match(/Lojas?:([0-9,\s]+)/i);
+    if (lm) lojas = lm[1].replace(/\s/g, '').replace(/,+$/,'');
+
+    // Mês/Ano: "J U N H O  /  2026"
+    const mm = line.match(/([A-ZÁÉÍÓÚÂÊÔÃÕÇ](?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ])+)\s*\/\s*(\d{4})/);
+    if (mm) {
+      const nome = mm[1].replace(/\s+/g,'').toUpperCase();
+      mes = MESES[nome] || mes;
+      ano = parseInt(mm[2]);
+    }
+
+    // Linha com números de dias: tem | e (dd)
+    if (!line.includes('|') || !/\(\d{2}\)/.test(line)) continue;
+
+    const dayCells = line.split('|');
+    let lLine = null, pLine = null;
+    for (let j = i+1; j < Math.min(i+7, lines.length); j++) {
+      if (!lLine && /\|L[\s\d]/.test(lines[j])) lLine = lines[j].split('|');
+      if (!pLine && /\|P[\s\d]/.test(lines[j])) pLine = lines[j].split('|');
+    }
+    if (!lLine) continue; // sem linha de lançamentos, pula
+
+    const parseVal = (cells, col) => {
+      if (!cells || !cells[col]) return 0;
+      const m = cells[col].replace(/^[A-Z]+/,'').match(/[\d.,]+/);
+      if (!m) return 0;
+      return parseFloat(m[0].replace(/\./g,'').replace(',','.')) || 0;
+    };
+
+    // Colunas 1-7 (SAB, DOM, SEG, TER, QUA, QUI, SEX); col 8 = total semana
+    for (let col = 1; col <= 7; col++) {
+      const dayCell = dayCells[col] || '';
+      const dm = dayCell.match(/\((\d{2})\)/);
+      if (!dm || !mes || !ano) continue;
+      const dia  = parseInt(dm[1]);
+      const data = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      const valL = parseVal(lLine, col);
+      const valP = pLine ? parseVal(pLine, col) : 0;
+      lancamentos.push({ data, dia, valor_lancamento: valL, valor_previsao: valP });
+    }
+  }
+
+  return {
+    mes, ano, lojas,
+    periodo: mes && ano ? `${ano}-${String(mes).padStart(2,'0')}` : '',
+    lancamentos,
+    totalL: lancamentos.reduce((s,r)=>s+r.valor_lancamento,0),
+    totalP: lancamentos.reduce((s,r)=>s+r.valor_previsao,0),
+  };
+}
+
+// ── Drag-and-drop / seleção de arquivo ────────────────────────────────────
+function handleDrop(ev) {
+  ev.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = ev.dataTransfer.files[0];
+  if (file) processarArquivo(file);
+}
+function handleDragOver(ev) {
+  ev.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function handleDragLeave(ev) {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function handleFileSelect(input) {
+  if (input.files[0]) processarArquivo(input.files[0]);
+}
+
+let dadosCP = null;
+
+function processarArquivo(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const resultado = parseTxtHipcom(e.target.result);
+      if (!resultado.mes || !resultado.ano) {
+        alert('Não foi possível identificar o mês/ano no arquivo.\nVerifique se é o relatório correto do Hipcom (Calendário dos Pagamentos a Efetuar).');
+        return;
+      }
+      if (!resultado.lancamentos.length) {
+        alert('Nenhum lançamento encontrado no arquivo.');
+        return;
+      }
+      dadosCP = resultado;
+      mostrarPreview(resultado);
+    } catch(ex) {
+      alert('Erro ao processar arquivo: ' + ex.message);
+    }
+  };
+  reader.readAsText(file, 'windows-1252');
+}
+
+const NOMES_MES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function mostrarPreview(res) {
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('import-preview').style.display = '';
+
+  const diasComValor = res.lancamentos.filter(l => l.valor_lancamento > 0);
+  document.getElementById('import-info').innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="sum-card"><div class="lbl">Período</div><div class="val" style="font-size:15px">${NOMES_MES[res.mes]}/${res.ano}</div></div>
+      <div class="sum-card"><div class="lbl">Lojas</div><div class="val" style="font-size:15px">${res.lojas||'—'}</div></div>
+      <div class="sum-card"><div class="lbl">Dias c/ pagto</div><div class="val c-purple">${diasComValor.length}</div></div>
+      <div class="sum-card"><div class="lbl">Total Lançamentos</div><div class="val c-warn">R$ ${R(res.totalL)}</div></div>
+      ${res.totalP>0?`<div class="sum-card"><div class="lbl">Total Previsão</div><div class="val c-info">R$ ${R(res.totalP)}</div></div>`:''}
+    </div>`;
+
+  const top = [...res.lancamentos].filter(l=>l.valor_lancamento>0).sort((a,b)=>b.valor_lancamento-a.valor_lancamento).slice(0,8);
+  document.getElementById('preview-table-wrap').innerHTML = `
+    <p style="font-size:12px;color:var(--muted);margin-bottom:6px">Top dias de maior pagamento:</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr>
+        <th class="left" style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Data</th>
+        <th style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted);text-align:right">Lançamentos (L)</th>
+        ${res.totalP>0?'<th style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted);text-align:right">Previsão (P)</th>':''}
+      </tr></thead>
+      <tbody>
+        ${top.map(d=>`<tr>
+          <td class="left" style="padding:4px 8px">${formatarData(d.data)}</td>
+          <td style="padding:4px 8px;text-align:right;color:${valorCorCP(d.valor_lancamento)};font-weight:600">R$ ${R(d.valor_lancamento)}</td>
+          ${res.totalP>0?`<td style="padding:4px 8px;text-align:right;color:var(--info)">R$ ${R(d.valor_previsao)}</td>`:''}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function cancelarImport() {
+  dadosCP = null;
+  document.getElementById('drop-zone').style.display = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-status').innerHTML = '';
+  document.getElementById('file-input').value = '';
+}
+
+async function confirmarImport() {
+  if (!dadosCP) return;
+  const btns = document.querySelectorAll('#import-preview button');
+  btns.forEach(b => b.disabled = true);
+  btns[0].textContent = 'Importando...';
+  try {
+    const r = await fetch(`${API}/api/contaspagar/importar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lancamentos: dadosCP.lancamentos, lojas: dadosCP.lojas, periodo: dadosCP.periodo }),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
+    document.getElementById('import-preview').style.display = 'none';
+    document.getElementById('drop-zone').style.display = '';
+    document.getElementById('file-input').value = '';
+    document.getElementById('import-status').innerHTML =
+      `<div style="color:var(--ok);font-size:12px;margin-top:10px">✓ ${data.importados} lançamentos importados — ${NOMES_MES[dadosCP.mes]}/${dadosCP.ano}</div>`;
+    dadosCP = null;
+    await carregarCalendario();
+  } catch(e) {
+    alert('Erro ao importar: ' + e.message);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+    btns[0].textContent = '✓ Confirmar Importação';
+  }
+}
+
+// ── Calendário ─────────────────────────────────────────────────────────────
+async function carregarCalendario() {
+  try {
+    const inicio = new Date(); inicio.setMonth(inicio.getMonth()-1); inicio.setDate(1);
+    const fim    = new Date(); fim.setMonth(fim.getMonth()+2); fim.setDate(0);
+    const r = await fetch(`${API}/api/contaspagar/calendario?inicio=${inicio.toISOString().slice(0,10)}&fim=${fim.toISOString().slice(0,10)}`);
+    const data = await r.json();
+
+    const st = data.stats || {};
+    const cpStatus = document.getElementById('cp-status');
+    if (st.n > 0) {
+      cpStatus.innerHTML = `<span style="color:var(--ok)">●</span> Banco de pagamentos: ${st.n} dias importados · Período: ${formatarData(st.min_d)} a ${formatarData(st.max_d)} · Total: <strong>R$ ${R(st.total_l)}</strong>`;
+    } else {
+      cpStatus.innerHTML = `<span style="color:var(--warn)">●</span> Nenhum dado importado ainda — importe o arquivo TXT do Hipcom`;
+    }
+
+    if (data.lancamentos && data.lancamentos.length) {
+      document.getElementById('panel-calendario').style.display = '';
+      renderCalendario(data.lancamentos);
+    }
+  } catch(e) { console.error('[CP]', e); }
+}
+
+function renderCalendario(lancamentos) {
+  // Agrupa por mês
+  const porMes = {};
+  lancamentos.forEach(l => {
+    const ym = l.data.slice(0,7);
+    if (!porMes[ym]) porMes[ym] = {};
+    porMes[ym][l.data] = l;
+  });
+
+  const DIAS_SEM = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const hoje = new Date().toISOString().slice(0,10);
+  let html = '';
+
+  for (const [ym, dias] of Object.entries(porMes).sort()) {
+    const [ano, mes] = ym.split('-').map(Number);
+    const primDow  = new Date(ano, mes-1, 1).getDay(); // 0=dom
+    const totalDias= new Date(ano, mes, 0).getDate();
+    const totalMes = Object.values(dias).reduce((s,d)=>s+d.valor_l+d.valor_p,0);
+
+    html += `<div style="margin-bottom:28px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="font-size:14px;font-weight:700;color:var(--accent2)">${NOMES_MES[mes]} / ${ano}</h3>
+        <span style="font-size:13px;color:var(--muted)">Total: <strong style="color:var(--warn)">R$ ${R(totalMes)}</strong></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+
+    // Cabeçalho dias da semana
+    DIAS_SEM.forEach(d => {
+      html += `<div style="text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding-bottom:4px">${d}</div>`;
+    });
+
+    // Células vazias antes do dia 1
+    for (let i = 0; i < primDow; i++) html += '<div></div>';
+
+    // Dias do mês
+    for (let dia = 1; dia <= totalDias; dia++) {
+      const data  = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      const info  = dias[data];
+      const valL  = info ? info.valor_l : 0;
+      const valP  = info ? info.valor_p : 0;
+      const total = valL + valP;
+      const isHj  = data === hoje;
+
+      html += `<div class="cal-day" style="background:${bgCorCP(total)};border-color:${isHj?'var(--accent)':'var(--border)'}">
+        <div class="cal-day-num${isHj?' hoje':''}">${dia}</div>
+        ${total>0?`<div class="cal-day-val" style="color:${valorCorCP(total)}">R$ ${fmtK(total)}</div>`:''}
+        ${valP>0&&valL>0?`<div style="font-size:8px;color:var(--info)">p ${fmtK(valP)}</div>`:''}
+      </div>`;
+    }
+    html += '</div>'; // grid
+
+    // Resumo por semana
+    const semanas = calcSemanas(ano, mes, dias);
+    if (semanas.length) {
+      html += `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">`;
+      semanas.forEach(s => {
+        const cls = s.total < 50000 ? 'b-ok' : s.total < 200000 ? 'b-warn' : 'b-danger';
+        html += `<span class="badge ${cls}" style="font-size:11px">${s.label}: R$ ${R(s.total)}</span>`;
+      });
+      html += '</div>';
+    }
+
+    html += '</div>'; // mês
+  }
+
+  document.getElementById('calendario-grid').innerHTML = html || '<p style="color:var(--muted)">Nenhum dado.</p>';
+}
+
+function calcSemanas(ano, mes, dias) {
+  const primDow  = new Date(ano, mes-1, 1).getDay();
+  const totalDias= new Date(ano, mes, 0).getDate();
+  const semanas = [];
+  let semTotal = 0, semInicio = 1, semNum = 1;
+
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const data = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const info = dias[data];
+    semTotal += info ? (info.valor_l + info.valor_p) : 0;
+    const dow = (primDow + dia - 1) % 7; // dia da semana
+    if (dow === 6 || dia === totalDias) { // sábado ou último dia
+      if (semTotal > 0)
+        semanas.push({ label:`Sem ${semNum}`, total:semTotal, inicio:semInicio, fim:dia });
+      semNum++; semTotal = 0; semInicio = dia+1;
+    }
+  }
+  return semanas;
+}
+
+// ── Carregar dados do calendário no início (para projeção de pagamento) ────
+async function carregarCalDados() {
+  try {
+    const hoje = new Date();
+    const fim  = new Date(); fim.setMonth(fim.getMonth() + 3); fim.setDate(0);
+    const r = await fetch(`${API}/api/contaspagar/calendario?inicio=${hoje.toISOString().slice(0,10)}&fim=${fim.toISOString().slice(0,10)}`);
+    calDados = await r.json();
+  } catch(e) { /* silencioso */ }
+}
+
+// ── Sync: loja anterior (barra de banco usa qualquer loja disponível) ───────
+async function iniciarSync() {
+  const lojas = getLojasSelecionadas();
+  const lojaId = lojas[0];
+  if (!lojaId) { alert('Selecione ao menos uma unidade antes de sincronizar.'); return; }
+
+  const btn = document.getElementById('btn-sync');
+  btn.disabled = true;
+  document.getElementById('prog-overlay').classList.add('show');
+  document.querySelector('#prog-overlay h3').textContent = '🔄 Sincronizando banco local...';
+  atualizarProgresso(0, 'Conectando ao Hipcom...');
+
+  try {
+    const { jobId } = await fetch(`${API}/api/sync/iniciar?loja=${lojaId}&dias=90`).then(r => r.json());
+    await new Promise((resolve, reject) => {
+      syncPollTimer = setInterval(async () => {
+        try {
+          const p = await fetch(`${API}/api/sync/progresso?job=${jobId}`).then(r => r.json());
+          atualizarProgresso(p.pct, p.etapa);
+          if (p.done || p.erro) { clearInterval(syncPollTimer); if (p.erro) reject(new Error(p.erro)); else resolve(); }
+        } catch(e) { clearInterval(syncPollTimer); reject(e); }
+      }, 700);
+    });
+    fecharProgresso();
+    document.querySelector('#prog-overlay h3').textContent = '🔍 Analisando fornecedor...';
+    await atualizarStatusBanco();
+  } catch(e) {
+    fecharProgresso();
+    document.querySelector('#prog-overlay h3').textContent = '🔍 Analisando fornecedor...';
+    alert('Erro na sincronização: ' + e.message);
+  } finally { btn.disabled = false; }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+carregarLojas();
+carregarFornecedores(); // carrega do cache SQLite uma vez — não bloqueia análise
+atualizarStatusBanco();
+// calDados é carregado só ao abrir o tab Fluxo de Caixa (ou antes de renderPedido)
+</script>
+</body>
+</html>

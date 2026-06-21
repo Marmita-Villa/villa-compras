@@ -1,0 +1,875 @@
+{
+  "_meta": {
+    "versao": "2025-06",
+    "estado": "SP",
+    "regime": "Lucro Real",
+    "fonte_icms": "RICMS-SP Decreto 45.490/2000 e atualizações",
+    "fonte_pis_cofins": "Lei 10.637/2002, Lei 10.833/2003",
+    "fonte_reforma": "EC 132/2023, LC 214/2025",
+    "ultima_revisao": "2025-06-20",
+    "aviso": "Sempre validar com SEFAZ-SP antes de decisões de compra. NCMs não listados usam o regime padrão."
+  },
+
+  "cronograma_reforma": {
+    "2025": {
+      "status": "atual",
+      "descricao": "Regime atual: ICMS/PIS/COFINS/ST conforme RICMS-SP",
+      "pis": 1.65,
+      "cofins": 7.6,
+      "cbs": 0,
+      "ibs": 0
+    },
+    "2026": {
+      "status": "transicao",
+      "descricao": "Teste piloto: CBS 0,9% + IBS 0,1% coexiste com PIS/COFINS/ICMS normais. Contribuinte ganha crédito do teste.",
+      "pis": 1.65,
+      "cofins": 7.6,
+      "cbs_teste": 0.9,
+      "ibs_teste": 0.1
+    },
+    "2027": {
+      "status": "transicao",
+      "descricao": "CBS substitui PIS/COFINS integralmente. ICMS permanece.",
+      "pis": 0,
+      "cofins": 0,
+      "cbs": 8.8,
+      "ibs": 0
+    },
+    "2028": {
+      "status": "transicao",
+      "descricao": "CBS plena. ICMS permanece intacto.",
+      "cbs": 8.8,
+      "ibs": 0,
+      "icms_fator": 1.0
+    },
+    "2029": {
+      "status": "transicao",
+      "descricao": "IBS entra (10% do valor final IBS). ICMS reduz 10%.",
+      "cbs": 8.8,
+      "ibs_parcial": 0.1,
+      "icms_fator": 0.9
+    },
+    "2030": {
+      "status": "transicao",
+      "descricao": "IBS 20%. ICMS reduz 20%.",
+      "cbs": 8.8,
+      "ibs_parcial": 0.2,
+      "icms_fator": 0.8
+    },
+    "2031": {
+      "status": "transicao",
+      "descricao": "IBS 30%. ICMS reduz 30%.",
+      "cbs": 8.8,
+      "ibs_parcial": 0.3,
+      "icms_fator": 0.7
+    },
+    "2032": {
+      "status": "transicao",
+      "descricao": "IBS 40%. ICMS reduz 40%.",
+      "cbs": 8.8,
+      "ibs_parcial": 0.4,
+      "icms_fator": 0.6
+    },
+    "2033": {
+      "status": "pleno",
+      "descricao": "IBS + CBS plenos. ICMS e ISS extintos.",
+      "cbs": 8.8,
+      "ibs": 17.7,
+      "icms_fator": 0
+    }
+  },
+
+  "aliquotas_reforma_por_categoria": {
+    "cesta_basica_nacional": {
+      "descricao": "Itens da Cesta Básica Nacional (Lei 14.803/2024) — alíquota zero IBS+CBS",
+      "cbs_2027": 0,
+      "ibs_2033": 0,
+      "is": false,
+      "ncms": ["1006.30","1001.99","0201","0202","0203","0204","0207","0301","0302","1101","1102","1501","1502","1503","1505","2401"]
+    },
+    "alimentacao_reducao60": {
+      "descricao": "Alimentos em geral — redução de 60% na alíquota IBS+CBS (aprox 10,6% combinado)",
+      "cbs_2027": 3.52,
+      "ibs_2033": 7.08,
+      "is": false
+    },
+    "bebidas_alcoolicas": {
+      "descricao": "Bebidas alcoólicas — alíquota plena + Imposto Seletivo (IS)",
+      "cbs_2027": 8.8,
+      "ibs_2033": 17.7,
+      "is": true,
+      "is_aliq_estimada": 5.0
+    },
+    "bebidas_nao_alcoolicas": {
+      "descricao": "Refrigerantes, sucos industrializados — alíquota plena (IS possível)",
+      "cbs_2027": 8.8,
+      "ibs_2033": 17.7,
+      "is": false
+    },
+    "higiene_limpeza": {
+      "descricao": "Higiene pessoal e limpeza — alíquota plena",
+      "cbs_2027": 8.8,
+      "ibs_2033": 17.7,
+      "is": false
+    }
+  },
+
+  "ncms": {
+
+    "22021000": {
+      "descricao": "Água mineral / potável com gás ou adicionada de açúcar",
+      "categoria": "bebida_nao_alcoolica",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico — revendedor não credita nem paga. Lei 10.147/2000."
+      },
+      "reforma": { "categoria": "bebidas_nao_alcoolicas" }
+    },
+
+    "22021000_mineral": {
+      "_alias": "22021000",
+      "descricao": "Água mineral sem gás (NCM 2201.10.00)",
+      "ncm_real": "22011000",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico."
+      },
+      "reforma": { "categoria": "bebidas_nao_alcoolicas" }
+    },
+
+    "22011000": {
+      "descricao": "Água mineral natural, gaseificada ou não",
+      "categoria": "bebida_nao_alcoolica",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico — Lei 10.147/2000."
+      },
+      "reforma": { "categoria": "bebidas_nao_alcoolicas" }
+    },
+
+    "22029000": {
+      "descricao": "Outras bebidas não alcoólicas (refrigerantes, isotônicos, energéticos)",
+      "categoria": "bebida_nao_alcoolica",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico — Lei 10.147/2000 art. 2º."
+      },
+      "reforma": { "categoria": "bebidas_nao_alcoolicas" }
+    },
+
+    "22030000": {
+      "descricao": "Cerveja de malte",
+      "categoria": "bebida_alcoolica",
+      "icms_sp": {
+        "aliq": 25,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 112/2017",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico — Lei 10.147/2000."
+      },
+      "reforma": { "categoria": "bebidas_alcoolicas" }
+    },
+
+    "22042100": {
+      "descricao": "Vinho de uvas frescas (espumantes, frisantes e demais)",
+      "categoria": "bebida_alcoolica",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 112/2017",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "normal",
+        "aliq_pis_entrada": 1.65,
+        "aliq_cofins_entrada": 7.6,
+        "aliq_pis_saida": 1.65,
+        "aliq_cofins_saida": 7.6,
+        "nota": "Vinho não é monofásico — regime normal Lucro Real."
+      },
+      "reforma": { "categoria": "bebidas_alcoolicas" }
+    },
+
+    "22083000": {
+      "descricao": "Uísque",
+      "categoria": "bebida_alcoolica",
+      "icms_sp": {
+        "aliq": 25,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 112/2017",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "normal",
+        "aliq_pis_entrada": 1.65,
+        "aliq_cofins_entrada": 7.6,
+        "aliq_pis_saida": 1.65,
+        "aliq_cofins_saida": 7.6,
+        "nota": ""
+      },
+      "reforma": { "categoria": "bebidas_alcoolicas" }
+    },
+
+    "22084000": {
+      "descricao": "Rum e outras aguardentes de cana-de-açúcar",
+      "categoria": "bebida_alcoolica",
+      "icms_sp": {
+        "aliq": 25,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 112/2017",
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "bebidas_alcoolicas" }
+    },
+
+    "22087000": {
+      "descricao": "Licores e outras bebidas alcoólicas compostas",
+      "categoria": "bebida_alcoolica",
+      "icms_sp": {
+        "aliq": 25,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 112/2017",
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "bebidas_alcoolicas" }
+    },
+
+    "15091000": {
+      "descricao": "Azeite de oliva virgem / extra virgem",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": true,
+        "st_data_remocao": "2024-04-01",
+        "st_portaria": "Portaria SRE 14/2024 (revogou ST azeite)",
+        "alerta": "ST REMOVIDA — o fornecedor passou a destacar ICMS normalmente. Verifique se o custo de compra foi reduzido e ajuste a formação de preço."
+      },
+      "pis_cofins": {
+        "regime": "normal",
+        "aliq_pis_entrada": 1.65,
+        "aliq_cofins_entrada": 7.6,
+        "aliq_pis_saida": 1.65,
+        "aliq_cofins_saida": 7.6,
+        "nota": ""
+      },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "15099000": {
+      "descricao": "Outros azeites de oliva refinados",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": true,
+        "st_data_remocao": "2024-04-01",
+        "st_portaria": "Portaria SRE 14/2024",
+        "alerta": "ST REMOVIDA — valide custo de compra com fornecedor."
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "21069090": {
+      "descricao": "Preparações alimentícias diversas (temperos prontos, molhos, condimentos)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "19021900": {
+      "descricao": "Massas alimentícias não cozidas (macarrão, espaguete, etc.)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "19053100": {
+      "descricao": "Biscoitos e bolachas amanteigadas",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "04021000": {
+      "descricao": "Leite em pó integral / desnatado",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Leite e derivados básicos — PIS/COFINS isento (Lei 10.925/2004 art. 1º)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "04031000": {
+      "descricao": "Iogurte",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Lei 10.925/2004 — PIS/COFINS isento para leite e derivados."
+      },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "04061000": {
+      "descricao": "Queijos frescos (minas, ricota, mozarela fresca)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Lei 10.925/2004."
+      },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "04069000": {
+      "descricao": "Outros queijos (parmesão, grana, gruyère, brie, etc.)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Lei 10.925/2004."
+      },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "10063021": {
+      "descricao": "Arroz polido / branco",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Arroz — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "11010010": {
+      "descricao": "Farinha de trigo",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Farinha de trigo — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "17011400": {
+      "descricao": "Açúcar de cana refinado / cristal",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Açúcar — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "15079011": {
+      "descricao": "Óleo de soja refinado",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Óleo vegetal — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "02013000": {
+      "descricao": "Carne bovina fresca (cortes nobres)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Carnes frescas — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "02071100": {
+      "descricao": "Frango inteiro fresco / resfriado",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "isento",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Carnes frescas — PIS/COFINS isento (Lei 10.925/2004)."
+      },
+      "reforma": { "categoria": "cesta_basica_nacional" }
+    },
+
+    "16010000": {
+      "descricao": "Embutidos (salame, linguiça, mortadela, presunto, salsicha)",
+      "categoria": "alimento",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 148/2008 e atualizações",
+        "alerta": "Verificar se a ST do seu fornecedor ainda está ativa. Algumas subcategorias foram retiradas em SP."
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    },
+
+    "33051000": {
+      "descricao": "Xampus / shampoos",
+      "categoria": "higiene",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Cosméticos — PIS/COFINS monofásico (Lei 10.147/2000)."
+      },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "33061000": {
+      "descricao": "Dentifrícios (pasta de dente)",
+      "categoria": "higiene",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Cosméticos — monofásico."
+      },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "34011190": {
+      "descricao": "Sabonetes",
+      "categoria": "higiene",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": true,
+        "cst_com_st": "60",
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": "Portaria CAT 68/2019",
+        "alerta": ""
+      },
+      "pis_cofins": {
+        "regime": "monofasico",
+        "aliq_pis_entrada": 0,
+        "aliq_cofins_entrada": 0,
+        "aliq_pis_saida": 0,
+        "aliq_cofins_saida": 0,
+        "nota": "Monofásico."
+      },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "34022000": {
+      "descricao": "Detergentes líquidos e em pó para uso doméstico",
+      "categoria": "limpeza",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": true,
+        "st_data_remocao": "2023-01-01",
+        "st_portaria": "Decreto SP 67.301/2022 — retirou limpeza do Anexo IV do RICMS",
+        "alerta": "ST REMOVIDA — Produtos de limpeza saíram do regime de ST em SP. Verifique se seu custo de compra reflete o ICMS normal agora cobrado pelo fornecedor."
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "34029000": {
+      "descricao": "Outros agentes de superfície orgânicos (água sanitária, alvejantes)",
+      "categoria": "limpeza",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": true,
+        "st_data_remocao": "2023-01-01",
+        "st_portaria": "Decreto SP 67.301/2022",
+        "alerta": "ST REMOVIDA — valide custo e repasse de ICMS na NF de entrada."
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "48189000": {
+      "descricao": "Papel higiênico",
+      "categoria": "higiene",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": ""
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "higiene_limpeza" }
+    },
+
+    "_padrao": {
+      "descricao": "Regime padrão — NCM não mapeado",
+      "categoria": "outros",
+      "icms_sp": {
+        "aliq": 12,
+        "isento": false,
+        "reducao_bc_pct": 0,
+        "st_ativo": false,
+        "cst_com_st": null,
+        "cst_sem_st": "00",
+        "st_removida": false,
+        "st_data_remocao": null,
+        "st_portaria": null,
+        "alerta": "NCM não mapeado — usando alíquota padrão 12%. Validar manualmente no SEFAZ-SP."
+      },
+      "pis_cofins": { "regime": "normal", "aliq_pis_entrada": 1.65, "aliq_cofins_entrada": 7.6, "aliq_pis_saida": 1.65, "aliq_cofins_saida": 7.6, "nota": "" },
+      "reforma": { "categoria": "alimentacao_reducao60" }
+    }
+  }
+}

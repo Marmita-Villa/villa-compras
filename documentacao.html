@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Documentação — Sistema de Sugestão de Compras · Villa Borghese</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm 20mm 18mm; }
+  @media print {
+    .no-print { display: none; }
+    body { font-size: 11px; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; }
+    h3 { font-size: 12px; }
+    .page-break { page-break-before: always; }
+    .avoid-break { page-break-inside: avoid; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a2e; line-height: 1.55; background: #fff; }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #7c6af7; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; z-index: 999; }
+  .print-btn:hover { background: #6355d8; }
+
+  /* Capa */
+  .capa { background: linear-gradient(135deg, #0f1117 0%, #1a1d2e 60%, #0f1117 100%); color: #e2e8f0; padding: 60px 50px; min-height: 297mm; display: flex; flex-direction: column; justify-content: center; position: relative; }
+  .capa-logo { font-size: 13px; color: #a78bfa; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
+  .capa-titulo { font-size: 36px; font-weight: 800; color: #ffffff; line-height: 1.15; margin-bottom: 16px; }
+  .capa-sub { font-size: 16px; color: #a78bfa; margin-bottom: 40px; }
+  .capa-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 50px; }
+  .badge { background: rgba(124,106,247,.25); border: 1px solid rgba(124,106,247,.4); color: #c4b5fd; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+  .capa-info { border-top: 1px solid rgba(255,255,255,.12); padding-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .info-item { }
+  .info-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .info-val { font-size: 14px; color: #e2e8f0; font-weight: 600; }
+  .capa-watermark { position: absolute; bottom: 40px; right: 50px; font-size: 10px; color: rgba(255,255,255,.2); text-align: right; }
+
+  /* Corpo */
+  .doc { max-width: 210mm; margin: 0 auto; padding: 30px 24px; }
+
+  h1 { font-size: 22px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  h2 { font-size: 15px; font-weight: 700; color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; margin: 28px 0 14px; text-transform: uppercase; letter-spacing: .4px; }
+  h3 { font-size: 12px; font-weight: 700; color: #1a1a2e; margin: 16px 0 8px; }
+  p { margin-bottom: 10px; color: #334155; }
+
+  .highlight-box { background: #f0f4ff; border-left: 4px solid #7c6af7; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .highlight-box.warn { background: #fffbeb; border-color: #f59e0b; }
+  .highlight-box.success { background: #f0fdf4; border-color: #22c55e; }
+  .highlight-box.danger { background: #fff1f2; border-color: #ef4444; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
+  th { background: #4f46e5; color: #fff; text-align: left; padding: 7px 10px; font-weight: 700; font-size: 10px; letter-spacing: .3px; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; color: #334155; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .tag-ok { background: #dcfce7; color: #15803d; }
+  .tag-warn { background: #fef3c7; color: #92400e; }
+  .tag-red { background: #fee2e2; color: #991b1b; }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .tag-purple { background: #ede9fe; color: #5b21b6; }
+
+  .formula { background: #0f1117; color: #a78bfa; padding: 12px 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 11px; margin: 10px 0; line-height: 1.7; white-space: pre-wrap; }
+
+  .flow { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; }
+  .step-num { background: #4f46e5; color: #fff; border-radius: 50%; width: 22px; height: 22px; min-width: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; margin-top: 1px; }
+  .step-body strong { display: block; font-size: 12px; color: #1a1a2e; }
+  .step-body span { font-size: 11px; color: #64748b; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  .mini-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+  .mini-card h4 { font-size: 11px; font-weight: 700; color: #4f46e5; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .3px; }
+  .mini-card li { font-size: 11px; color: #334155; list-style: none; padding: 2px 0; }
+  .mini-card li::before { content: "▸ "; color: #7c6af7; font-size: 10px; }
+
+  .timeline { display: flex; gap: 0; margin: 14px 0; border-radius: 8px; overflow: hidden; }
+  .tl-item { flex: 1; padding: 10px 8px; text-align: center; font-size: 10px; }
+  .tl-item .ano { font-size: 14px; font-weight: 800; display: block; margin-bottom: 3px; }
+  .tl-item .desc { font-size: 9px; line-height: 1.3; }
+  .tl-0 { background: #1e1b4b; color: #a78bfa; }
+  .tl-1 { background: #312e81; color: #c4b5fd; }
+  .tl-2 { background: #4338ca; color: #e0e7ff; }
+  .tl-3 { background: #4f46e5; color: #e0e7ff; }
+  .tl-4 { background: #6366f1; color: #e0e7ff; }
+  .tl-5 { background: #818cf8; color: #1e1b4b; }
+  .tl-6 { background: #a5b4fc; color: #1e1b4b; }
+
+  .separator { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+
+  ul.plain { list-style: none; padding: 0; }
+  ul.plain li { padding: 4px 0; padding-left: 16px; position: relative; color: #334155; font-size: 11px; }
+  ul.plain li::before { content: "•"; position: absolute; left: 0; color: #7c6af7; font-weight: 700; }
+
+  .endpoint { font-family: monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 11px; color: #4f46e5; }
+  .method { display: inline-block; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-right: 4px; }
+  .get { background: #dcfce7; color: #15803d; }
+  .post { background: #dbeafe; color: #1e40af; }
+
+  footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ Salvar como PDF</button>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- CAPA                                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="capa">
+  <div class="capa-logo">Empório Villa Borghese · Velozyn</div>
+  <div class="capa-titulo">Sistema de<br>Sugestão de Compras</div>
+  <div class="capa-sub">Documentação Técnica e Funcional — Reserva360 / ConciliaPro</div>
+  <div class="capa-badges">
+    <span class="badge">LUCRO REAL</span>
+    <span class="badge">ESTADO: SP</span>
+    <span class="badge">API HIPCOM v7.3</span>
+    <span class="badge">REFORMA TRIBUTÁRIA EC 132/2023</span>
+    <span class="badge">NODE.JS PURO</span>
+    <span class="badge">MULTI-LOJA</span>
+    <span class="badge">SQLITE LOCAL</span>
+    <span class="badge">FLUXO DE CAIXA</span>
+  </div>
+  <div class="capa-info">
+    <div class="info-item">
+      <div class="info-label">Empresa</div>
+      <div class="info-val">Empório Villa Borghese</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Módulo</div>
+      <div class="info-val">Sugestão de Compras — ConciliaPro</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">ERP Integrado</div>
+      <div class="info-val">Hipcom v7.3</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Data do documento</div>
+      <div class="info-val">Junho / 2026</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Regime Tributário</div>
+      <div class="info-val">Lucro Real · SP</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Versão</div>
+      <div class="info-val">2.0 — Build Junho 2026</div>
+    </div>
+  </div>
+  <div class="capa-watermark">Documentação gerada em Junho/2026<br>Uso interno — Empório Villa Borghese</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- CONTEÚDO                                                              -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="doc page-break">
+
+  <!-- 1. VISÃO GERAL -->
+  <h2>1. Visão Geral do Sistema</h2>
+
+  <div class="highlight-box">
+    <strong>Objetivo:</strong> Fornecer ao setor de compras do Empório Villa Borghese uma sugestão precisa de quantidade e valor de pedido por fornecedor, já considerando: custo real fiscal (ICMS, PIS/COFINS, ST), margem líquida mínima de 30–35%, histórico de vendas, estoque atual, quebras e rupturas de estoque, transferências entre unidades e projeção de pagamento versus calendário de contas a pagar — tudo conectado em tempo real ao ERP Hipcom.
+  </div>
+
+  <p>O sistema é composto pelos seguintes arquivos:</p>
+  <table>
+    <tr><th>Arquivo</th><th>Função</th></tr>
+    <tr><td><strong>proxy.js</strong></td><td>Servidor Node.js puro. Conecta na API Hipcom, processa cálculos fiscais e de sugestão de compra (incluindo multi-loja e transferências), gerencia banco SQLite local, expõe API REST na porta 3000.</td></tr>
+    <tr><td><strong>index.html</strong></td><td>Interface web completa (HTML + CSS + JS puro). Duas abas: "Análise de Compras" e "Fluxo de Caixa". Acesso via navegador em http://localhost:3000.</td></tr>
+    <tr><td><strong>db.js</strong></td><td>Camada de acesso ao SQLite (banco.db). Gerencia cache local de dados Hipcom, contas a pagar e prazos por fornecedor.</td></tr>
+    <tr><td><strong>banco.db</strong></td><td>Banco SQLite gerado automaticamente. Persiste vendas, estoques, compras, fiscal, contas a pagar e prazos — evita repetir chamadas ao Hipcom.</td></tr>
+  </table>
+
+  <h3>Novidades da versão 2.0</h3>
+  <div class="grid-2">
+    <div class="mini-card avoid-break">
+      <h4>🏪 Multi-Loja</h4>
+      <ul class="plain">
+        <li>Seleção por checkboxes: 1 loja ou qualquer combinação das 5 (IDs 1, 2, 3, 5, 6)</li>
+        <li>Análise consolidada: agrega vendas, estoques e compras de todas as lojas selecionadas</li>
+        <li>Detalhamento por loja: estoque, venda média e excesso individuais</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>🔄 Transferências entre Lojas</h4>
+      <ul class="plain">
+        <li>Antes de sugerir compra, identifica lojas com excesso de estoque (>30% do necessário)</li>
+        <li>Propõe transferência em múltiplos da embalagem</li>
+        <li>Separa: qtd_transferencia + qtd_comprar (quantidade real a pedir do fornecedor)</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>💰 Fluxo de Caixa</h4>
+      <ul class="plain">
+        <li>Importação do "Calendário dos Pagamentos a Efetuar" do Hipcom (TXT, Windows-1252)</li>
+        <li>Calendário heatmap mensal com intensidade de pagamentos por dia</li>
+        <li>Drag-and-drop de arquivo + preview antes de confirmar importação</li>
+        <li>Atualização quinzenal recomendada</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>📅 Projeção de Pagamento</h4>
+      <ul class="plain">
+        <li>Campo "Prazo pag. fornecedor (dias)" — padrão 28 dias, editável por fornecedor</li>
+        <li>Calcula data estimada de vencimento do pedido (hoje + prazo)</li>
+        <li>Verifica carga da semana no calendário importado</li>
+        <li>Semáforo: ✅ tranquila / ⚠ moderada / 🔴 sobrecarregada</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2. Como Executar</h2>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Abrir o arquivo "ABRIR SISTEMA.bat"</strong>
+        <span>Localizado em: C:\Users\Matheus\Documents\Analise de Sistemas\villa-compras\<br>Dê duplo clique — o servidor inicia automaticamente e abre o navegador.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Alternativa — linha de comando</strong>
+        <span>node "C:\Users\Matheus\Documents\Analise de Sistemas\villa-compras\proxy.js"</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Acessar no navegador</strong>
+        <span>http://localhost:3000 — o servidor precisa estar rodando (janela do terminal aberta).</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Pré-requisito</strong>
+        <span>Node.js instalado (verificar: node --version no terminal). A máquina precisa ter acesso à rede do Hipcom (emporiovilla.dyndns.info:2222).</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>3. Fluxo de Uso — Aba "Análise de Compras"</h2>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Selecionar Unidades / Lojas</strong>
+        <span>Seletor com checkboxes: marque uma ou mais lojas para análise consolidada. "Todas as lojas" seleciona as 5 unidades ativas (IDs 1, 2, 3, 5, 6) de uma vez.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Selecionar Fornecedor</strong>
+        <span>Lista todos os fornecedores do Hipcom. Ao clicar em "Analisar", o sistema busca os produtos vinculados ao fornecedor em todas as lojas selecionadas.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Definir parâmetros</strong>
+        <span>Período de análise (padrão 30 dias), Dias de abastecimento (padrão 30) e Prazo pag. fornecedor (padrão 28 dias, usado na projeção de pagamento).</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Clicar em "Analisar"</strong>
+        <span>Barra de progresso exibe cada etapa em tempo real: fiscal → vendas → estoques → compras (por cada loja selecionada) → cálculos de transferência e sugestão.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <strong>Analisar resultado</strong>
+        <span>4 cards de resumo: Financeiro, Situação dos Produtos, Projeção de Pagamento (com semáforo de carga semanal) e Antes de Fechar (lista de transferências possíveis). Tabela com colunas Qtd Sugerida, Transferir e Qtd Comprar.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <strong>Exportar ou imprimir</strong>
+        <span>Botão "Exportar CSV" gera planilha compatível com Excel (UTF-8 com BOM).</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>3.1 Fluxo de Uso — Aba "Fluxo de Caixa"</h2>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Exportar calendário do Hipcom</strong>
+        <span>No Hipcom desktop: Financeiro → Contas a Pagar → Calendário dos Pagamentos a Efetuar. Selecionar período quinzenal. Exportar como TXT (Windows-1252).</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Importar arquivo</strong>
+        <span>Arrastar o arquivo TXT para a zona de drop (ou clicar para selecionar). O sistema exibe preview com total de lançamentos e soma dos valores antes de confirmar.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Confirmar importação</strong>
+        <span>Dados gravados no SQLite local (tabela contaspagar). Cada data/valor sobrescreve entrada anterior (INSERT OR REPLACE) — importações são idempotentes.</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Visualizar calendário heatmap</strong>
+        <span>Grade mensal colorida por intensidade: transparente (sem pagamentos), verde (&lt;R$ 20k), âmbar (R$ 20k–100k), vermelho claro (R$ 100k–200k), vermelho intenso (&gt;R$ 200k).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. DADOS COLETADOS DO HIPCOM -->
+  <h2 class="page-break">4. Dados Coletados do ERP Hipcom</h2>
+
+  <p>O sistema faz múltiplas chamadas à API Hipcom v7.3 (REST, Basic Auth). Todos os endpoints usam paginação automática (limite 200 por página, offset incremental).</p>
+
+  <table>
+    <tr><th>Endpoint Hipcom</th><th>O que retorna</th><th>Usado para</th></tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/lojas</span></td>
+      <td>Lista de unidades com CNPJ, fantasia, município</td>
+      <td>Preencher selector de loja na tela</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/fornecedores</span></td>
+      <td>Todos os fornecedores cadastrados</td>
+      <td>Preencher selector de fornecedor</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/fornecedoresprodutos?loja=X</span></td>
+      <td>Vínculo fornecedor → produto (campo plu)</td>
+      <td>Descobrir quais PLUs pertencem ao fornecedor selecionado</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/produtos?loja=X&entra_rentabilidade=S</span></td>
+      <td>Cadastro completo dos produtos: custo, preço, NCM, embalagem, estoque atual, departamento</td>
+      <td>Base de todos os cálculos (custo, preço, embalagem)</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/vendasprodutos?loja=X&data=YYYY-MM-DD</span></td>
+      <td>Vendas por produto por dia (quantidade + valor)</td>
+      <td>Calcular venda média diária e detectar ruptura</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/estoquesprodutos?loja=X&data=YYYY-MM-DD</span></td>
+      <td>Estoque por produto em uma data específica</td>
+      <td>Estoque no início do período (quebra) e estoque atual</td>
+    </tr>
+    <tr>
+      <td><span class="method get">GET</span><span class="endpoint">/api/hipcom/comprasprodutos?loja=X&data=YYYY-MM-DD</span></td>
+      <td>Compras (entradas) por produto no período</td>
+      <td>Cálculo de quebra real do período</td>
+    </tr>
+    <tr>
+      <td><span class="method post">POST</span><span class="endpoint">/api/fiscal/consultarproduto</span></td>
+      <td>Dados fiscais reais do produto: CST entrada/saída, alíquota ICMS entrada/saída, PIS entrada/saída, COFINS entrada/saída, FCP</td>
+      <td>Cálculo preciso do custo real e margem líquida real</td>
+    </tr>
+  </table>
+
+  <div class="highlight-box warn avoid-break">
+    <strong>⚠️ Nota sobre dados fiscais:</strong> O endpoint <code>/api/fiscal/consultarproduto</code> retorna os dados fiscais cadastrados no Hipcom para cada produto individualmente. Estes dados são a fonte primária dos cálculos. A tabela NCM local (<code>ncm_fiscal.json</code>) é usada como fallback quando o produto não possui dados fiscais no Hipcom, e para cruzamento de alertas (ST removida, divergência CST).
+  </div>
+
+  <!-- 5. CÁLCULOS FISCAIS -->
+  <h2 class="page-break">5. Cálculos Fiscais — Lucro Real / SP</h2>
+
+  <h3>5.1 Custo Real (após recuperação de créditos na entrada)</h3>
+  <div class="formula">custo_real = custo_hipcom
+           - (custo_hipcom × icmsAlqEntrada / 100)
+           - (custo_hipcom × pisAlqEntrada / 100)
+           - (custo_hipcom × cofinsAlqEntrada / 100)
+
+Obs.: No regime Lucro Real, a empresa recupera crédito de ICMS, PIS e COFINS
+      nas compras. O custo_real é o custo efetivo após esses créditos.</div>
+
+  <h3>5.2 Impostos na Saída (débitos ao vender)</h3>
+  <div class="formula">deb_icms    = preco_venda × icmsAlqSaida / 100
+               (= 0 se produto com ST — CST saída 60, imposto já pago na entrada)
+
+deb_pis     = preco_venda × pisAlqSaida / 100
+deb_cofins  = preco_venda × cofinsAlqSaida / 100
+deb_fcp     = preco_venda × fcp / 100        (Fundo de Combate à Pobreza)
+
+total_impostos_saida = deb_icms + deb_pis + deb_cofins + deb_fcp</div>
+
+  <h3>5.3 Margem Líquida Real</h3>
+  <div class="formula">margem_bruta   = (preco_venda - custo_hipcom) / preco_venda × 100
+margem_liquida = (preco_venda - custo_real - total_impostos_saida) / preco_venda × 100
+
+Meta: 30% ≤ margem_liquida ≤ 35%</div>
+
+  <h3>5.4 Preço Mínimo de Venda (sem prejuízo)</h3>
+  <div class="formula">aliquota_total_saida = (icmsAlqSaida + pisAlqSaida + cofinsAlqSaida + fcp) / 100
+
+// Para ST ativa (CST 60): icmsAlqSaida = 0 no denominador
+
+preco_minimo_30% = custo_real / (1 - aliquota_total_saida - 0.30)
+preco_minimo_35% = custo_real / (1 - aliquota_total_saida - 0.35)</div>
+
+  <h3>5.5 Regimes PIS/COFINS detectados automaticamente</h3>
+  <table>
+    <tr><th>Regime</th><th>Como é detectado</th><th>Impacto no cálculo</th></tr>
+    <tr>
+      <td><span class="tag tag-blue">Normal</span></td>
+      <td>Alíquotas PIS/COFINS &gt; 0 nos campos de entrada e saída do Hipcom</td>
+      <td>Crédito na entrada + débito na saída (regime não-cumulativo)</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-purple">Monofásico</span></td>
+      <td>Alíquotas todas zero; CST saída 07, 08 ou 09 (bebidas, combustíveis, etc.)</td>
+      <td>Sem crédito na entrada, sem débito na saída. Imposto recolhido pela indústria.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-ok">Isento</span></td>
+      <td>Alíquotas todas zero; CST saída 04, 05 ou 06 (cesta básica, Lei 10.925/2004)</td>
+      <td>Alíquota zero. Carnes, laticínios, grãos, hortifrutigranjeiros.</td>
+    </tr>
+  </table>
+
+  <!-- 6. SUBSTITUIÇÃO TRIBUTÁRIA -->
+  <h2>6. Substituição Tributária (ST) e Alertas Fiscais</h2>
+
+  <p>O sistema cruza os dados fiscais reais do Hipcom com a tabela NCM local para detectar situações que impactam a margem:</p>
+
+  <table>
+    <tr><th>Alerta</th><th>Causa</th><th>O que fazer</th></tr>
+    <tr>
+      <td><span class="tag tag-red">ST_REMOVIDA</span></td>
+      <td>O NCM do produto teve a Substituição Tributária extinta (ex: azeite — Portaria SRE 14/2024; limpeza — Decreto 67.301/2022). O Hipcom ainda pode ter o produto cadastrado com CST 60.</td>
+      <td>Verificar se o fornecedor está emitindo NF sem ST. Se sim, atualizar cadastro no Hipcom e revisar o preço de venda (margem melhora).</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-warn">DIVERGENCIA_CST</span></td>
+      <td>O CST cadastrado no Hipcom diverge do regime esperado para o NCM em SP.</td>
+      <td>Conferir NF de entrada e cadastro fiscal no Hipcom. Solicitar validação ao contador.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">MONOFASICO</span></td>
+      <td>Produto com PIS/COFINS monofásico (água, refrigerante, cerveja, combustíveis).</td>
+      <td>Não há crédito de PIS/COFINS na entrada. Margem calculada sem esses créditos.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-ok">ISENTO</span></td>
+      <td>Produto isento de PIS/COFINS (cesta básica, carnes, laticínios).</td>
+      <td>Alíquota zero. Impacto positivo na margem — confirmar isenção no cadastro Hipcom.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">SEM_NCM</span></td>
+      <td>Produto sem NCM cadastrado na Hipcom.</td>
+      <td>Cadastrar o NCM correto no Hipcom para que o sistema calcule o regime adequado.</td>
+    </tr>
+    <tr>
+      <td><span class="tag">SEM_FISCAL</span></td>
+      <td>Endpoint fiscal do Hipcom não retornou dados para o produto.</td>
+      <td>Cálculo estimado pela tabela NCM. Verificar cadastro fiscal no Hipcom.</td>
+    </tr>
+  </table>
+
+  <!-- 7. SUGESTÃO DE COMPRA -->
+  <h2 class="page-break">7. Sugestão de Quantidade de Compra</h2>
+
+  <h3>7.1 Fórmula completa (multi-loja)</h3>
+  <div class="formula">// Dados agregados de TODAS as lojas selecionadas
+venda_media_dia  = Σ(total_vendido_por_loja) / dias_periodo
+estoque_atual    = Σ(estoque_atual_por_loja)
+total_compras    = Σ(compras_por_loja)
+
+// Quebra real (perda de estoque) — calculada sobre agregado
+quebra_estimada  = (estoque_inicio + total_comprado) - total_vendido - estoque_fim
+taxa_quebra (%)  = quebra_estimada / (estoque_inicio + total_comprado) × 100
+
+// Ruptura: % de dias sem venda quando produto tem giro
+ruptura_pct (%)  = (dias_sem_venda / dias_periodo) × 100   (somente se venda_media > 0)
+
+// Quantidade necessária para cobrir X dias de abastecimento
+qtd_necessaria   = venda_media_dia × dias_abastecimento
+qtd_com_quebra   = qtd_necessaria × (1 + taxa_quebra / 100)
+qtd_liquida      = qtd_com_quebra - estoque_atual
+
+// Ajuste por ruptura frequente (>30% dos dias sem venda = falha de estoque)
+se ruptura_pct > 30%:
+    qtd_liquida = qtd_liquida × 1.20   (+20% de segurança)
+
+// Arredondar para múltiplo da embalagem
+qtd_sugerida = MAX(0, qtd_liquida)
+qtd_sugerida = TETO(qtd_sugerida / qtd_embalagem) × qtd_embalagem
+
+// ── Transferência entre lojas (antes de comprar do fornecedor) ────────────
+// Para cada loja com excesso (estoque > necessidade × 1.3):
+excesso_loja     = MAX(0, estoque_loja - necessidade_loja × 1.3)
+qtd_transf_loja  = PISO(excesso_loja / qtd_embalagem) × qtd_embalagem
+
+qtd_transferencia = Σ(qtd_transf_loja de todas as lojas com excesso)  [≤ qtd_sugerida]
+qtd_comprar       = MAX(0, qtd_sugerida - qtd_transferencia)
+
+// Valor do pedido (apenas o que vai ser comprado de fato)
+valor_pedido = qtd_comprar × custo_hipcom</div>
+
+  <div class="highlight-box success avoid-break">
+    <strong>Fluxo de decisão de compra:</strong> O sistema primeiro verifica se há excesso em alguma loja da rede. Se sim, propõe a transferência interna (mais barato e rápido). Só o saldo restante (qtd_comprar) vai para o pedido ao fornecedor. Exemplo: precisa de 48 unidades, tem 24 para transferir → pede apenas 24 ao fornecedor.
+  </div>
+
+  <h3>7.2 Status por produto</h3>
+  <table>
+    <tr><th>Status</th><th>Condição</th><th>Compra sugerida?</th></tr>
+    <tr><td><span class="tag tag-ok">ESTOQUE OK</span></td><td>Estoque atual ≥ quantidade necessária para o período</td><td>Não</td></tr>
+    <tr><td><span class="tag tag-ok">OK</span></td><td>Margem ≥ 30%, há giro, sugere compra</td><td>Sim</td></tr>
+    <tr><td><span class="tag tag-red">SEM CUSTO</span></td><td>Custo = R$ 0,00 no Hipcom</td><td>Não — cadastrar custo</td></tr>
+    <tr><td><span class="tag">INATIVO</span></td><td>Venda zero e estoque zero no período</td><td>Não</td></tr>
+    <tr><td><span class="tag">SEM GIRO</span></td><td>Venda zero, mas há estoque</td><td>Não</td></tr>
+    <tr><td><span class="tag tag-red">ABAIXO DO CUSTO</span></td><td>Margem líquida &lt; 0% (vendendo abaixo do custo real)</td><td>Não — corrigir preço antes</td></tr>
+    <tr><td><span class="tag tag-warn">REVISAR PREÇO</span></td><td>Margem líquida entre 0% e 30%</td><td>Com ressalva — mostra preço mínimo</td></tr>
+    <tr><td><span class="tag tag-red">RUPTURA FREQUENTE</span></td><td>&gt;30% dos dias sem venda (provável falta de estoque)</td><td>Sim, com +20% na quantidade</td></tr>
+  </table>
+
+  <h3>7.3 Projeção de receita e lucro</h3>
+  <div class="formula">receita_prevista = venda_media_dia × dias_abastecimento × preco_venda
+lucro_previsto   = venda_media_dia × dias_abastecimento × (preco_venda - custo_real - total_impostos_saida)</div>
+
+  <!-- 8. REFORMA TRIBUTÁRIA -->
+  <h2 class="page-break">8. Reforma Tributária — EC 132/2023 / LC 214/2025</h2>
+
+  <p>O sistema projeta o impacto da reforma tributária na margem de cada produto, ano a ano de 2025 a 2033:</p>
+
+  <div class="timeline avoid-break">
+    <div class="tl-item tl-0"><span class="ano">2025</span><div class="desc">Regime atual<br>ICMS + PIS/COFINS</div></div>
+    <div class="tl-item tl-1"><span class="ano">2026</span><div class="desc">CBS 0,9% + IBS 0,1%<br>coexiste com atual</div></div>
+    <div class="tl-item tl-2"><span class="ano">2027</span><div class="desc">CBS substitui<br>PIS/COFINS integralmente</div></div>
+    <div class="tl-item tl-3"><span class="ano">2029</span><div class="desc">IBS 10%<br>ICMS –10%</div></div>
+    <div class="tl-item tl-4"><span class="ano">2030</span><div class="desc">IBS 20%<br>ICMS –20%</div></div>
+    <div class="tl-item tl-4"><span class="ano">2031</span><div class="desc">IBS 30%<br>ICMS –30%</div></div>
+    <div class="tl-item tl-5"><span class="ano">2032</span><div class="desc">IBS 40%<br>ICMS –40%</div></div>
+    <div class="tl-item tl-6"><span class="ano">2033</span><div class="desc">IBS+CBS plenos<br>ICMS extinto</div></div>
+  </div>
+
+  <h3>8.1 Alíquotas por categoria (CBS + IBS plenos em 2033)</h3>
+  <table>
+    <tr><th>Categoria</th><th>CBS 2027</th><th>IBS 2033</th><th>Total 2033</th><th>Exemplos</th></tr>
+    <tr><td>Cesta Básica Nacional</td><td>0%</td><td>0%</td><td>0%</td><td>Arroz, feijão, farinha, ovos, frango, carne</td></tr>
+    <tr><td>Alimentação — redução 60%</td><td>~8,8%</td><td>~17,7%</td><td>~26,5%</td><td>Azeite, queijo, embutidos, massas, molhos</td></tr>
+    <tr><td>Bebidas alcoólicas</td><td>Plena</td><td>Plena + IS</td><td>~40%+</td><td>Cerveja, vinho, destilados</td></tr>
+    <tr><td>Higiene/limpeza</td><td>Plena</td><td>Plena</td><td>~26,5%</td><td>Sabão, detergente, desinfetante</td></tr>
+  </table>
+
+  <div class="highlight-box avoid-break">
+    <strong>Como o sistema usa isso:</strong> Para cada produto analisado, o sistema consulta o NCM e aplica a categoria correspondente. Em cada linha da tabela, o comprador pode expandir o produto e ver uma projeção de margem ano a ano — sabendo exatamente como a margem vai mudar à medida que a reforma avança.
+  </div>
+
+  <!-- 9. CACHE E PERFORMANCE -->
+  <h2>9. Cache Local — SQLite (banco.db)</h2>
+
+  <p>A partir da versão 2.0 o cache é persistido em banco SQLite local (<strong>banco.db</strong>), não mais em memória. Os dados sobrevivem a reinicializações do servidor.</p>
+  <table>
+    <tr><th>Dado</th><th>Tabela SQLite</th><th>TTL</th><th>Motivo</th></tr>
+    <tr><td>Lista de lojas</td><td>lojas</td><td>1 hora</td><td>Raramente muda</td></tr>
+    <tr><td>Fornecedores</td><td>fornecedores</td><td>1 hora</td><td>Raramente muda</td></tr>
+    <tr><td>Produtos (cadastro)</td><td>produtos</td><td>1 hora por loja</td><td>Custo/preço pode ser atualizado</td></tr>
+    <tr><td>Fornecedor-Produtos (vínculo)</td><td>fornecedor_produtos</td><td>1 hora por loja</td><td>Raramente muda</td></tr>
+    <tr><td>Dados fiscais por produto</td><td>fiscal</td><td>7 dias</td><td>Dados muito estáveis — economia de chamadas ao Hipcom</td></tr>
+    <tr><td>Vendas e estoques de datas passadas</td><td>vendas / estoques / compras</td><td>Nunca expiram</td><td>Dados históricos imutáveis</td></tr>
+    <tr><td>Vendas/estoque do dia atual</td><td>vendas / estoques</td><td>5 minutos</td><td>Dado vivo — atualiza durante o dia</td></tr>
+    <tr><td>Contas a pagar</td><td>contaspagar</td><td>Manual (quinzenal)</td><td>Importado via TXT — não há API para isso no Hipcom v7.3</td></tr>
+    <tr><td>Prazos por fornecedor</td><td>fornecedor_prazos</td><td>Permanente</td><td>Configurado manualmente pelo usuário</td></tr>
+  </table>
+
+  <!-- 10. BARRA DE PROGRESSO -->
+  <h2>10. Barra de Progresso — Etapas da Análise</h2>
+
+  <p>Ao iniciar uma análise, o sistema roda em background e o frontend consulta o progresso a cada 600ms:</p>
+
+  <table>
+    <tr><th>%</th><th>Etapa</th><th>O que acontece</th></tr>
+    <tr><td>0–2%</td><td>Iniciando</td><td>Job criado no servidor, aguardando início</td></tr>
+    <tr><td>2–8%</td><td>Produtos</td><td>Carrega cadastro completo de produtos da loja no Hipcom</td></tr>
+    <tr><td>8–10%</td><td>Vínculo fornecedor</td><td>Filtra produtos vinculados ao fornecedor selecionado</td></tr>
+    <tr><td>10–48%</td><td>Dados fiscais</td><td>Consulta fiscal individual por produto (lotes de 8 em paralelo)</td></tr>
+    <tr><td>48–70%</td><td>Vendas diárias</td><td>Consulta vendas dia a dia pelo período — 1 req por dia</td></tr>
+    <tr><td>72–78%</td><td>Estoque inicial</td><td>Estoque na data de início do período (para cálculo de quebra)</td></tr>
+    <tr><td>80–84%</td><td>Estoque atual</td><td>Estoque no dia de hoje</td></tr>
+    <tr><td>86–90%</td><td>Compras</td><td>Entradas de mercadoria no período (para cálculo de quebra)</td></tr>
+    <tr><td>92–99%</td><td>Cálculos</td><td>Aplica fórmulas fiscais e de sugestão produto a produto</td></tr>
+    <tr><td>100%</td><td>Concluído</td><td>Resultado enviado ao navegador, tela atualizada</td></tr>
+  </table>
+
+  <!-- 11. ESTRUTURA DA RESPOSTA -->
+  <h2 class="page-break">11. Estrutura da Resposta por Produto</h2>
+
+  <p>Cada produto retornado pela análise possui os seguintes campos:</p>
+
+  <div class="grid-2">
+    <div class="mini-card avoid-break">
+      <h4>📦 Identificação</h4>
+      <ul class="plain">
+        <li>plu — código do produto no Hipcom</li>
+        <li>nome — descrição do produto</li>
+        <li>ncm — código NCM (8 dígitos)</li>
+        <li>departamento / secao</li>
+        <li>curva_abc — A / B / C</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>📊 Movimentação</h4>
+      <ul class="plain">
+        <li>estoque_atual — unidades em estoque hoje</li>
+        <li>estoque_inicio — estoque no início do período</li>
+        <li>total_vendas_periodo — total vendido (unid.)</li>
+        <li>total_compras_periodo — total comprado (unid.)</li>
+        <li>venda_media_dia — média diária de venda</li>
+        <li>taxa_quebra (%) — perda estimada no período</li>
+        <li>ruptura_pct (%) — % dias sem venda com giro</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>🛒 Sugestão de Compra</h4>
+      <ul class="plain">
+        <li>qtd_embalagem — múltiplo obrigatório do pedido</li>
+        <li>qtd_sugerida — necessidade total (agregada de todas as lojas)</li>
+        <li>qtd_transferencia — pode ser suprida por excesso em outra loja</li>
+        <li>qtd_comprar — qtd real a pedir ao fornecedor (sugerida − transferência)</li>
+        <li>valor_pedido — R$ custo × qtd_comprar</li>
+        <li>receita_prevista — R$ se vender tudo no período</li>
+        <li>lucro_previsto — R$ lucro líquido projetado</li>
+        <li>recomenda_compra — true / false</li>
+        <li>status — OK / REVISAR PREÇO / etc.</li>
+        <li>transferencias[] — array {de_loja, qtd, excesso} para cada loja doadora</li>
+        <li>por_loja[] — breakdown individual {loja, estoque, venda_media_dia, excesso}</li>
+        <li>lojas_analise[] — IDs das lojas incluídas na análise</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>💰 Fiscal</h4>
+      <ul class="plain">
+        <li>custo_hipcom — custo bruto do Hipcom</li>
+        <li>custo_real — custo após créditos de entrada</li>
+        <li>margem_bruta (%) — sem fiscal</li>
+        <li>margem_liquida (%) — com todos impostos</li>
+        <li>preco_min_30 — preço mínimo para 30% ML</li>
+        <li>preco_min_35 — preço mínimo para 35% ML</li>
+        <li>tem_st — true se CST saída = 60</li>
+        <li>regime_pis_cofins — normal / monofasico / isento</li>
+        <li>cenarios_reforma — projeção 2025→2033</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 12. TABELA NCM LOCAL -->
+  <h2>12. Tabela NCM Local (ncm_fiscal.json)</h2>
+  <p>Arquivo local que mapeia NCMs para o regime fiscal em SP / Lucro Real. Usado como fallback e para alertas de ST. Principais categorias mapeadas:</p>
+
+  <table>
+    <tr><th>NCM</th><th>Descrição</th><th>Regime PIS/COFINS</th><th>ST em SP</th><th>Obs.</th></tr>
+    <tr><td>2201.10 / 2202</td><td>Água e bebidas não alcoólicas</td><td>Monofásico</td><td>Não</td><td></td></tr>
+    <tr><td>2203.00</td><td>Cerveja</td><td>Monofásico</td><td>Não</td><td></td></tr>
+    <tr><td>2204.21</td><td>Vinho</td><td>Normal</td><td>Sim</td><td></td></tr>
+    <tr><td>1509 / 1510</td><td>Azeite de oliva</td><td>Normal</td><td>REMOVIDA</td><td>Portaria SRE 14/2024</td></tr>
+    <tr><td>3402</td><td>Produtos de limpeza</td><td>Normal</td><td>REMOVIDA</td><td>Decreto 67.301/2022</td></tr>
+    <tr><td>0201–0210</td><td>Carnes</td><td>Isento</td><td>Não</td><td>Lei 10.925/2004</td></tr>
+    <tr><td>0401–0406</td><td>Laticínios</td><td>Isento</td><td>Não</td><td>Lei 10.925/2004</td></tr>
+    <tr><td>1001–1008</td><td>Grãos e cereais</td><td>Isento</td><td>Não</td><td>Lei 10.925/2004</td></tr>
+  </table>
+
+  <!-- 13. ROTAS DA API LOCAL -->
+  <h2 class="page-break">13. API Local (porta 3000) — Para Integração Futura</h2>
+
+  <div class="highlight-box success avoid-break">
+    <strong>✅ Pronto para integração:</strong> O proxy.js expõe uma API REST própria na porta 3000. Qualquer sistema externo pode consumir esses endpoints via HTTP GET/POST sem precisar de credenciais do Hipcom. Ideal para integrar com o painel de reservas, ConciliaPro ou outros módulos.
+  </div>
+
+  <table>
+    <tr><th>Rota local</th><th>Método</th><th>Parâmetros</th><th>Retorno</th></tr>
+    <tr>
+      <td><span class="endpoint">/api/lojas</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>—</td>
+      <td>Array de lojas com id, fantasia, cnpj, municipio</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/fornecedores</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>—</td>
+      <td>Array de fornecedores com id e razão social</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/cronograma-reforma</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>—</td>
+      <td>Cronograma da reforma tributária e alíquotas por categoria</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/ncm/:ncm</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>ncm (8 dígitos na URL)</td>
+      <td>Informações fiscais do NCM: regime, ST, alíquotas, categoria reforma</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/analise/iniciar</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>lojas (ex: 1,2,3), id (fornecedor), dias, dias_abast</td>
+      <td>{ jobId } — inicia análise multi-loja em background</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/analise/progresso</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>job (jobId)</td>
+      <td>{ pct, etapa, done, erro, totalProdutos } — progresso em tempo real</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/analise/resultado</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>job (jobId)</td>
+      <td>Array completo com fiscal, sugestão, transferencias[], por_loja[], lojas_analise[]</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/prazos/get</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>fornecedor (ID)</td>
+      <td>{ prazo_dias, num_parcelas, intervalo_dias, forma_pagto } — prazo do fornecedor</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/prazos/set</span></td>
+      <td><span class="method post">POST</span></td>
+      <td>Body JSON: { fornecedor, prazo_dias, num_parcelas, intervalo_dias, forma_pagto }</td>
+      <td>{ ok: true } — salva prazo no SQLite</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/contaspagar/status</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>—</td>
+      <td>{ min_d, max_d, n, total_l, total_p, ultimo } — resumo do calendário importado</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/contaspagar/calendario</span></td>
+      <td><span class="method get">GET</span></td>
+      <td>inicio, fim (YYYY-MM-DD)</td>
+      <td>{ lancamentos[], stats } — lançamentos do período + totais</td>
+    </tr>
+    <tr>
+      <td><span class="endpoint">/api/contaspagar/importar</span></td>
+      <td><span class="method post">POST</span></td>
+      <td>Body JSON: { lancamentos[], lojas, periodo }</td>
+      <td>{ ok: true, n } — importa dados do TXT parseado pelo frontend</td>
+    </tr>
+  </table>
+
+  <h3>Exemplo de integração externa</h3>
+  <div class="formula">// 1. Iniciar análise
+const { jobId } = await fetch('http://localhost:3000/api/analise/iniciar?loja=1&id=42&dias=30&dias_abast=30').then(r=>r.json());
+
+// 2. Polling de progresso
+const poll = setInterval(async () => {
+  const p = await fetch(`http://localhost:3000/api/analise/progresso?job=${jobId}`).then(r=>r.json());
+  console.log(`${p.pct}% — ${p.etapa}`);
+  if (p.done) clearInterval(poll);
+}, 600);
+
+// 3. Buscar resultado quando done=true
+const produtos = await fetch(`http://localhost:3000/api/analise/resultado?job=${jobId}`).then(r=>r.json());</div>
+
+  <!-- 14. INTEGRAÇÃO FUTURA -->
+  <h2>14. Roadmap de Integração Futura</h2>
+
+  <div class="grid-2">
+    <div class="mini-card avoid-break">
+      <h4>🔗 Integrações Planejadas</h4>
+      <ul class="plain">
+        <li>Nubank PJ — emissão de boletos e PIX para fornecedores</li>
+        <li>NFS-e Santos/ABRASF — nota fiscal de serviço</li>
+        <li>Rede (adquirente) — conciliação de vendas</li>
+        <li>Hipcom PDV — sincronização de preços sugeridos</li>
+        <li>Pluggy — Open Finance / conciliação bancária</li>
+        <li>Hipcom SMS/WhatsApp — alertas de ruptura</li>
+      </ul>
+    </div>
+    <div class="mini-card avoid-break">
+      <h4>📱 Próximos Módulos</h4>
+      <ul class="plain">
+        <li>App mobile (comprador em campo)</li>
+        <li>Aprovação de pedido em workflow (gerente → comprador)</li>
+        <li>Histórico de pedidos gerados</li>
+        <li>Envio automático de pedido ao fornecedor (e-mail/EDI)</li>
+        <li>Dashboard de chargeback</li>
+        <li>Vouchers e programas de fidelidade</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="highlight-box warn avoid-break">
+    <strong>Ponto de atenção para integração:</strong> O proxy.js roda localmente e depende de acesso à rede interna (Hipcom em emporiovilla.dyndns.info:2222). Para integração com sistema em nuvem, será necessário publicar o proxy em um servidor com IP fixo, ou implementar um gateway/webhook que receba eventos do Hipcom.
+  </div>
+
+  <!-- 15. IMPORTAÇÃO TXT — CONTAS A PAGAR -->
+  <h2 class="page-break">15. Importação TXT — Contas a Pagar (Hipcom)</h2>
+
+  <p>O módulo Contas a Pagar do Hipcom não possui endpoint REST na versão v7.3. A solução adotada é a importação quinzenal do relatório "Calendário dos Pagamentos a Efetuar" exportado como TXT.</p>
+
+  <div class="highlight-box warn avoid-break">
+    <strong>Como exportar do Hipcom:</strong> Financeiro → Contas a Pagar → Calendário dos Pagamentos a Efetuar → Selecionar período (ex: 01/06/2026 a 30/06/2026) → Imprimir como TXT. Frequência recomendada: a cada 15 dias (quinzenal).
+  </div>
+
+  <h3>15.1 Formato do arquivo TXT</h3>
+  <table>
+    <tr><th>Característica</th><th>Detalhe</th></tr>
+    <tr><td>Codificação</td><td>Windows-1252 (Latin-1) — lido com FileReader.readAsText(file, 'windows-1252')</td></tr>
+    <tr><td>Separador de colunas</td><td>Pipe <code>|</code> — 8 colunas (Sáb / Dom / Seg / Ter / Qua / Qui / Sex / Total semana)</td></tr>
+    <tr><td>Linha de dias</td><td>Contém padrão <code>(dd)</code> — ex: <code>(15)</code> para o dia 15</td></tr>
+    <tr><td>Linha L</td><td>Lançamentos financeiros confirmados — ex: <code>L 187.060,58</code></td></tr>
+    <tr><td>Linha P</td><td>Previsões financeiras — ex: <code>P 12.500,00</code></td></tr>
+    <tr><td>Cabeçalho do mês</td><td>Mês por extenso em letras espaçadas — ex: <code>J U N H O  /  2 0 2 6</code></td></tr>
+    <tr><td>Lojas inclusas</td><td>Indicadas no cabeçalho — ex: <code>Lojas:1,2,6</code></td></tr>
+  </table>
+
+  <h3>15.2 Parser TXT (parseTxtHipcom)</h3>
+  <div class="formula">// 1. Detecta mês/ano pelo padrão de letras espaçadas
+//    "J U N H O  /  2 0 2 6" → { mes: 6, ano: 2026 }
+
+// 2. Detecta lojas pela linha "Lojas:1,2,6"
+
+// 3. Para cada linha com |(dd)| detecta o dia do mês
+//    Lê as próximas linhas: primeira com |L = lançamentos, primeira com |P = previsões
+//    Divide pelo separador | → 7 colunas de dias da semana
+
+// 4. Converte valor BR → float
+//    "2.789,60" → 2789.60  (remove pontos, substitui vírgula)
+
+// 5. Resultado por dia: { data: "2026-06-15", valor_lancamento, valor_previsao }
+
+// Validação: total de lançamentos do mês deve bater com "LANÇAMENTOS DO MÊS" no rodapé</div>
+
+  <!-- 16. REQUISITOS TÉCNICOS -->
+  <h2>16. Requisitos Técnicos</h2>
+
+  <table>
+    <tr><th>Requisito</th><th>Versão / Detalhe</th></tr>
+    <tr><td>Node.js</td><td>v18+ recomendado (módulos nativos: http, fs, path, url)</td></tr>
+    <tr><td>better-sqlite3</td><td>npm install better-sqlite3 — driver SQLite síncrono (mais rápido que sqlite3 assíncrono)</td></tr>
+    <tr><td>Navegador</td><td>Chrome, Edge ou Firefox modernos (Chart.js via CDN)</td></tr>
+    <tr><td>Rede</td><td>Acesso a emporiovilla.dyndns.info:2222 (API Hipcom)</td></tr>
+    <tr><td>Porta local</td><td>3000 TCP (deve estar livre)</td></tr>
+    <tr><td>Autenticação Hipcom</td><td>Basic Auth — usuário hipcomfull (credenciais no proxy.js)</td></tr>
+    <tr><td>Arquivo de tabela NCM</td><td>ncm_fiscal.json — deve estar na mesma pasta do proxy.js</td></tr>
+    <tr><td>banco.db</td><td>Criado automaticamente na primeira execução. Não apagar — contém histórico e contas a pagar.</td></tr>
+  </table>
+
+  <hr class="separator"/>
+  <footer>
+    Empório Villa Borghese · Sistema de Sugestão de Compras · ConciliaPro · Versão 2.0<br>
+    Velozyn — Tecnologia para varejo · Documentação interna · Junho/2026<br>
+    Arquivos: proxy.js + db.js + index.html + ncm_fiscal.json + banco.db · Porta 3000 · Lucro Real / SP<br>
+    Novidades v2.0: Multi-loja · Transferências entre unidades · Fluxo de Caixa · Projeção de Pagamento · Cache SQLite
+  </footer>
+
+</div><!-- /doc -->
+</body>
+</html>

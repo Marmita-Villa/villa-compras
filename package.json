@@ -1,0 +1,14 @@
+{
+  "name": "villa-compras",
+  "version": "1.0.0",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  }
+}
