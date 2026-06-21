@@ -373,6 +373,7 @@ function setPrazo(fornecedor, p) {
 }
 
 module.exports = {
+  db,
   getLojas, setLojas,
   getFornecedores, setFornecedores,
   getProdutos, setProdutos,

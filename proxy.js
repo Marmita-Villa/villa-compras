@@ -835,6 +835,63 @@ const server = http.createServer(async (req, res) => {
       const fim    = q.fim    || today();
       return jRes(res, 200, { lancamentos: db.getContasPagar(inicio, fim), stats: db.getStatsCP() });
     }
+    if (pathname === '/api/margem/analise') {
+      const produtos_rows = db.db.prepare("SELECT json FROM produtos WHERE loja=1").all();
+      const todos_prods = [];
+      for (const row of produtos_rows) {
+        try { todos_prods.push(...JSON.parse(row.json)); } catch(e){}
+      }
+      const fiscalMapA = {};
+      const fiscRowsA = db.db.prepare("SELECT plu, json FROM fiscal WHERE json IS NOT NULL").all();
+      for (const fr of fiscRowsA) {
+        if (!fiscalMapA[fr.plu]) { try { fiscalMapA[fr.plu] = JSON.parse(fr.json); } catch(e){} }
+      }
+      let fornMapA = {};
+      try {
+        const frows = db.db.prepare("SELECT json FROM fornecedor_produtos WHERE loja=1").all();
+        for (const r of frows) {
+          try { for (const item of JSON.parse(r.json)) { if (item.plu && item.fornecedor && !fornMapA[item.plu]) fornMapA[item.plu] = item.fornecedor; } } catch(e){}
+        }
+      } catch(e){}
+      let nomeFornA = {};
+      try {
+        const fns = db.db.prepare("SELECT json FROM fornecedores WHERE loja=1").all();
+        for (const fn of fns) { try { for (const f of JSON.parse(fn.json)) { if (f.id) nomeFornA[f.id] = f.nome || String(f.id); } } catch(e){} }
+      } catch(e){}
+
+      const resultados = [];
+      for (const p of todos_prods) {
+        if (!p.ativo || p.ativo === 'N') continue;
+        const custo = parseFloat(p.custo || 0);
+        const preco = parseFloat(p.valor_produto || 0);
+        if (custo <= 0 || preco <= 0) continue;
+        const fRaw = fiscalMapA[p.plu] || null;
+        const f = fRaw ? (fRaw[0] || fRaw) : null;
+        const ncmInfo = getNcmInfo(p.ncm);
+        const ca = calcLucroReal(custo, preco, f, ncmInfo);
+        const ml = ca.margem_liquida;
+        let status = 'OK';
+        if (preco < ca.custo_real)  status = 'ABAIXO_CUSTO_REAL';
+        else if (preco < custo)     status = 'ABAIXO_CUSTO_HIPCOM';
+        else if (ml !== null && ml < 0)  status = 'PREJUIZO';
+        else if (ml !== null && ml < 15) status = 'MARGEM_CRITICA';
+        else if (ml !== null && ml < 30) status = 'MARGEM_BAIXA';
+        resultados.push({
+          plu: p.plu, descricao: p.descricao, ncm: p.ncm || '',
+          comprador: p.nome_comprador || '',
+          custo_hipcom: +custo.toFixed(4), custo_real: +ca.custo_real.toFixed(4),
+          preco: +preco.toFixed(4),
+          margem_bruta: preco > 0 ? +((preco-custo)/preco*100).toFixed(2) : null,
+          margem_liquida: ml !== null ? +ml.toFixed(2) : null,
+          preco_min_30: ca.preco_min_30 ? +ca.preco_min_30.toFixed(2) : null,
+          ajuste: ca.preco_min_30 ? +(ca.preco_min_30 - preco).toFixed(2) : null,
+          tem_st: ca.tem_st, regime: ca.regime, origem: ca.origem,
+          curva_abc: p.curva_abc || '', status,
+        });
+      }
+      return jRes(res, 200, { resultados });
+    }
+
     if (pathname === '/api/contaspagar/importar' && req.method === 'POST') {
       const body = await readBody(req);
       const { lancamentos, lojas, periodo } = JSON.parse(body);

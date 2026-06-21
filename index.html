@@ -192,6 +192,22 @@
     .cal-day-num{font-size:10px;color:var(--muted)}
     .cal-day-num.hoje{color:var(--accent2);font-weight:700}
     .cal-day-val{font-size:9px;font-weight:700;margin-top:2px;line-height:1.2}
+    /* ── Análise de Margem ── */
+    .card-resumo-m{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .15s,background .15s}
+    .card-resumo-m:hover{border-color:var(--accent);background:rgba(124,106,247,.07)}
+    .crm-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .crm-val{font-size:28px;font-weight:800;color:var(--fg);margin-bottom:2px}
+    .crm-sub{font-size:11px;color:var(--muted)}
+    .badge-status{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap}
+    .bs-red{background:rgba(239,68,68,.15);color:#f87171}
+    .bs-orange{background:rgba(245,158,11,.15);color:#fbbf24}
+    .bs-yellow{background:rgba(234,179,8,.15);color:#facc15}
+    .bs-green{background:rgba(34,197,94,.15);color:#4ade80}
+    .bs-muted{background:rgba(100,116,139,.15);color:#94a3b8}
+    .marg-neg{color:#f87171;font-weight:700}
+    .marg-crit{color:#fbbf24;font-weight:700}
+    .marg-baixa{color:#facc15}
+    .marg-ok{color:#4ade80}
   </style>
 </head>
 <body>
@@ -258,6 +274,7 @@
     <button class="tab-nav active" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
     <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
     <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
+    <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')">📊 Análise de Margem</button>
   </div>
 
   <!-- Seção: Análise de Compras -->
@@ -529,6 +546,125 @@
     </div>
 
   </div><!-- /section-pedido -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SEÇÃO: ANÁLISE DE MARGEM COMPLETA                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div id="section-margem" style="display:none">
+
+    <!-- Barra de ação -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn-pri" id="btn-margem-rodar" onclick="rodarAnaliseMargem()">🔍 Rodar Análise de Margem</button>
+      <span id="margem-status" style="font-size:12px;color:var(--muted)">Clique para analisar todos os produtos ativos</span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button class="btn-sec" style="font-size:12px;padding:5px 12px" onclick="exportarMargemCsv()">⬇ CSV</button>
+      </div>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div id="margem-cards" style="display:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+      <div class="card-resumo-m" id="mcard-prejuizo" onclick="filtrarMargem('PREJUIZO_TOTAL')" style="cursor:pointer">
+        <div class="crm-label">🔴 Abaixo custo / Prejuízo</div>
+        <div class="crm-val" id="mval-prejuizo">—</div>
+        <div class="crm-sub">produtos em perda certa</div>
+      </div>
+      <div class="card-resumo-m" id="mcard-critica" onclick="filtrarMargem('MARGEM_CRITICA')" style="cursor:pointer">
+        <div class="crm-label">🟠 Margem crítica &lt;15%</div>
+        <div class="crm-val" id="mval-critica">—</div>
+        <div class="crm-sub">abaixo do mínimo seguro</div>
+      </div>
+      <div class="card-resumo-m" id="mcard-baixa" onclick="filtrarMargem('MARGEM_BAIXA')" style="cursor:pointer">
+        <div class="crm-label">🟡 Margem baixa 15–30%</div>
+        <div class="crm-val" id="mval-baixa">—</div>
+        <div class="crm-sub">precisa de atenção</div>
+      </div>
+      <div class="card-resumo-m" id="mcard-ok" onclick="filtrarMargem('OK')" style="cursor:pointer">
+        <div class="crm-label">🟢 OK ≥30%</div>
+        <div class="crm-val" id="mval-ok">—</div>
+        <div class="crm-sub">margem adequada</div>
+      </div>
+      <div class="card-resumo-m" onclick="filtrarMargem('TODOS')" style="cursor:pointer">
+        <div class="crm-label">📦 Total analisado</div>
+        <div class="crm-val" id="mval-total">—</div>
+        <div class="crm-sub">produtos ativos c/ preço</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div id="margem-filtros" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="margem-busca" placeholder="🔍 Buscar produto / PLU…" oninput="renderTabelaMargem()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--fg);font-size:13px;width:220px">
+      <select id="margem-filtro-status" onchange="renderTabelaMargem()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
+        <option value="TODOS">Todos os status</option>
+        <option value="PREJUIZO_TOTAL">🔴 Abaixo custo / Prejuízo</option>
+        <option value="ABAIXO_CUSTO_REAL">🔴 Abaixo custo real</option>
+        <option value="ABAIXO_CUSTO_HIPCOM">🔴 Abaixo custo Hipcom</option>
+        <option value="PREJUIZO">🔴 Margem negativa</option>
+        <option value="MARGEM_CRITICA">🟠 Margem crítica &lt;15%</option>
+        <option value="MARGEM_BAIXA">🟡 Margem baixa 15–30%</option>
+        <option value="OK">🟢 OK ≥30%</option>
+        <option value="ALERTAS">⚠ Todos os alertas</option>
+      </select>
+      <select id="margem-filtro-comprador" onchange="renderTabelaMargem()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
+        <option value="">Todos compradores</option>
+      </select>
+      <select id="margem-filtro-curva" onchange="renderTabelaMargem()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
+        <option value="">Todas as curvas</option>
+        <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option>
+        <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
+        <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option>
+      </select>
+      <span id="margem-contagem" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+    </div>
+
+    <!-- Tabela -->
+    <div id="margem-tabela-wrap" style="display:none;overflow-x:auto">
+      <table class="tbl" id="margem-tabela" style="font-size:12px;min-width:1000px">
+        <thead>
+          <tr>
+            <th style="cursor:pointer" onclick="sortMargem('status')">STATUS ↕</th>
+            <th style="cursor:pointer" onclick="sortMargem('plu')">PLU ↕</th>
+            <th>DESCRIÇÃO</th>
+            <th style="cursor:pointer" onclick="sortMargem('comprador')">COMPRADOR ↕</th>
+            <th style="cursor:pointer" onclick="sortMargem('curva_abc')">CURVA ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('custo_hipcom')">C.HIPCOM ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('custo_real')">C.REAL ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('preco')">P.VENDA ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('margem_bruta')">M.BRUTA% ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('margem_liquida')">M.LÍQUIDA% ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('preco_min_30')">P.MÍN 30% ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('ajuste')">AJUSTE ↕</th>
+            <th>REGIME</th>
+          </tr>
+        </thead>
+        <tbody id="margem-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Resumo por comprador -->
+    <div id="margem-resumo-comprador" style="display:none;margin-top:20px">
+      <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:10px">📊 Resumo por Comprador</div>
+      <div style="overflow-x:auto">
+        <table class="tbl" style="font-size:12px;min-width:600px" id="margem-tbl-comprador">
+          <thead>
+            <tr>
+              <th>COMPRADOR</th>
+              <th style="text-align:right">TOTAL PRODS</th>
+              <th style="text-align:right">🔴 PREJUÍZO</th>
+              <th style="text-align:right">🟠 MARG CRÍTICA</th>
+              <th style="text-align:right">🟡 MARG BAIXA</th>
+              <th style="text-align:right">MARG MÉD%</th>
+            </tr>
+          </thead>
+          <tbody id="margem-tbody-comprador"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /section-margem -->
 
 </main>
 
@@ -1406,11 +1542,216 @@ function switchTab(tab) {
   document.getElementById('section-analise').style.display = tab === 'analise' ? '' : 'none';
   document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
   document.getElementById('section-pedido').style.display  = tab === 'pedido'  ? '' : 'none';
+  document.getElementById('section-margem').style.display  = tab === 'margem'  ? '' : 'none';
   document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
   document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
   document.getElementById('tab-pedido-btn').classList.toggle('active',  tab === 'pedido');
+  document.getElementById('tab-margem-btn').classList.toggle('active',  tab === 'margem');
   if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
   if (tab === 'pedido') { pedidoCarregarHistorico(); }
+}
+
+// ══════════════════════════════════════════════════════════
+// ANÁLISE DE MARGEM COMPLETA
+// ══════════════════════════════════════════════════════════
+let _margemDados = [];
+let _margemSort  = { col: 'margem_liquida', asc: true };
+
+async function rodarAnaliseMargem() {
+  const btn = document.getElementById('btn-margem-rodar');
+  const st  = document.getElementById('margem-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analisando…';
+  st.textContent  = 'Calculando margens de todos os produtos ativos…';
+  try {
+    const r = await fetch('/api/margem/analise');
+    const j = await r.json();
+    _margemDados = j.resultados || [];
+    _margemSort  = { col: 'margem_liquida', asc: true };
+    preencherFiltroComprador();
+    atualizarCards();
+    renderTabelaMargem();
+    renderResumoComprador();
+    document.getElementById('margem-cards').style.display    = 'grid';
+    document.getElementById('margem-filtros').style.display  = 'flex';
+    document.getElementById('margem-tabela-wrap').style.display = '';
+    document.getElementById('margem-resumo-comprador').style.display = '';
+    const alertas = _margemDados.filter(d => d.status !== 'OK').length;
+    st.textContent = `${_margemDados.length} produtos analisados · ${alertas} alertas encontrados`;
+  } catch(e) {
+    st.textContent = '❌ Erro: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 Atualizar Análise';
+}
+
+function preencherFiltroComprador() {
+  const sel = document.getElementById('margem-filtro-comprador');
+  const set = [...new Set(_margemDados.map(d => d.comprador).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos compradores</option>' +
+    set.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function atualizarCards() {
+  const grupos = { prej: 0, critica: 0, baixa: 0, ok: 0 };
+  for (const d of _margemDados) {
+    if (['ABAIXO_CUSTO_REAL','ABAIXO_CUSTO_HIPCOM','PREJUIZO'].includes(d.status)) grupos.prej++;
+    else if (d.status === 'MARGEM_CRITICA') grupos.critica++;
+    else if (d.status === 'MARGEM_BAIXA')   grupos.baixa++;
+    else grupos.ok++;
+  }
+  document.getElementById('mval-prejuizo').textContent = grupos.prej;
+  document.getElementById('mval-critica').textContent  = grupos.critica;
+  document.getElementById('mval-baixa').textContent    = grupos.baixa;
+  document.getElementById('mval-ok').textContent       = grupos.ok;
+  document.getElementById('mval-total').textContent    = _margemDados.length;
+  // colorir card de prejuízo
+  document.getElementById('mcard-prejuizo').style.borderColor = grupos.prej > 0 ? '#ef4444' : '';
+  document.getElementById('mval-prejuizo').style.color = grupos.prej > 0 ? '#f87171' : '';
+}
+
+function filtrarMargem(status) {
+  document.getElementById('margem-filtro-status').value = status;
+  renderTabelaMargem();
+  document.getElementById('margem-tabela-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function sortMargem(col) {
+  if (_margemSort.col === col) _margemSort.asc = !_margemSort.asc;
+  else { _margemSort.col = col; _margemSort.asc = col !== 'margem_liquida'; }
+  renderTabelaMargem();
+}
+
+function renderTabelaMargem() {
+  const busca     = (document.getElementById('margem-busca').value || '').toLowerCase();
+  const fStatus   = document.getElementById('margem-filtro-status').value;
+  const fComp     = document.getElementById('margem-filtro-comprador').value;
+  const fCurva    = document.getElementById('margem-filtro-curva').value;
+
+  let dados = _margemDados.filter(d => {
+    if (busca && !d.descricao.toLowerCase().includes(busca) && !String(d.plu).includes(busca)) return false;
+    if (fComp  && d.comprador !== fComp) return false;
+    if (fCurva && d.curva_abc !== fCurva) return false;
+    if (fStatus === 'TODOS') return true;
+    if (fStatus === 'ALERTAS') return d.status !== 'OK';
+    if (fStatus === 'PREJUIZO_TOTAL') return ['ABAIXO_CUSTO_REAL','ABAIXO_CUSTO_HIPCOM','PREJUIZO'].includes(d.status);
+    return d.status === fStatus;
+  });
+
+  // Ordenação
+  const col = _margemSort.col;
+  dados = dados.slice().sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (va === null || va === undefined) va = _margemSort.asc ? Infinity : -Infinity;
+    if (vb === null || vb === undefined) vb = _margemSort.asc ? Infinity : -Infinity;
+    if (typeof va === 'string') return _margemSort.asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return _margemSort.asc ? va - vb : vb - va;
+  });
+
+  document.getElementById('margem-contagem').textContent = `${dados.length} produtos`;
+
+  const brl = v => v != null ? 'R$ ' + v.toFixed(2).replace('.', ',') : '—';
+  const pct = v => v != null ? v.toFixed(1) + '%' : '—';
+
+  const statusBadge = s => {
+    const map = {
+      ABAIXO_CUSTO_REAL:   ['bs-red',    '🔴 Abaixo c.real'],
+      ABAIXO_CUSTO_HIPCOM: ['bs-red',    '🔴 Abaixo c.Hipcom'],
+      PREJUIZO:            ['bs-red',    '🔴 Marg. negativa'],
+      MARGEM_CRITICA:      ['bs-orange', '🟠 Crítica <15%'],
+      MARGEM_BAIXA:        ['bs-yellow', '🟡 Baixa 15–30%'],
+      OK:                  ['bs-green',  '🟢 OK'],
+    };
+    const [cls, txt] = map[s] || ['bs-muted', s];
+    return `<span class="badge-status ${cls}">${txt}</span>`;
+  };
+
+  const margClass = (v, st) => {
+    if (['ABAIXO_CUSTO_REAL','ABAIXO_CUSTO_HIPCOM','PREJUIZO'].includes(st)) return 'marg-neg';
+    if (st === 'MARGEM_CRITICA') return 'marg-crit';
+    if (st === 'MARGEM_BAIXA')   return 'marg-baixa';
+    return 'marg-ok';
+  };
+
+  const regimeBadge = r => {
+    if (r === 'monofasico') return '<span class="badge-status bs-muted" title="PIS/COFINS recolhido na indústria">Monofásico</span>';
+    if (r === 'isento')     return '<span class="badge-status bs-green">Isento</span>';
+    return '<span class="badge-status bs-muted">Normal</span>';
+  };
+
+  const tbody = document.getElementById('margem-tbody');
+
+  // Paginação simples — mostrar no máximo 300 linhas de uma vez
+  const MAX = 300;
+  const vis = dados.slice(0, MAX);
+  tbody.innerHTML = vis.map(d => `
+    <tr>
+      <td>${statusBadge(d.status)}</td>
+      <td style="color:var(--muted);font-size:11px">${d.plu}</td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${d.descricao}">${d.descricao}</td>
+      <td style="font-size:11px">${d.comprador || '—'}</td>
+      <td style="text-align:center;font-size:11px">${d.curva_abc || '—'}</td>
+      <td style="text-align:right">${brl(d.custo_hipcom)}</td>
+      <td style="text-align:right">${brl(d.custo_real)}</td>
+      <td style="text-align:right;font-weight:600">${brl(d.preco)}</td>
+      <td style="text-align:right;color:var(--muted)">${pct(d.margem_bruta)}</td>
+      <td style="text-align:right" class="${margClass(d.margem_liquida, d.status)}">${pct(d.margem_liquida)}</td>
+      <td style="text-align:right;color:var(--muted)">${brl(d.preco_min_30)}</td>
+      <td style="text-align:right;${d.ajuste > 0 ? 'color:#f87171;font-weight:700' : ''}">${d.ajuste != null && d.ajuste > 0 ? '+' + brl(d.ajuste) : '—'}</td>
+      <td>${regimeBadge(d.regime)}</td>
+    </tr>`).join('');
+
+  if (dados.length > MAX) {
+    tbody.innerHTML += `<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:12px">
+      Mostrando ${MAX} de ${dados.length}. Use os filtros para refinar.
+    </td></tr>`;
+  }
+}
+
+function renderResumoComprador() {
+  const porComp = {};
+  for (const d of _margemDados) {
+    const c = d.comprador || 'SEM COMPRADOR';
+    if (!porComp[c]) porComp[c] = { total:0, prej:0, critica:0, baixa:0, margens:[] };
+    porComp[c].total++;
+    if (['ABAIXO_CUSTO_REAL','ABAIXO_CUSTO_HIPCOM','PREJUIZO'].includes(d.status)) porComp[c].prej++;
+    else if (d.status === 'MARGEM_CRITICA') porComp[c].critica++;
+    else if (d.status === 'MARGEM_BAIXA')   porComp[c].baixa++;
+    if (d.margem_liquida != null) porComp[c].margens.push(d.margem_liquida);
+  }
+  const entries = Object.entries(porComp).sort((a,b) => b[1].prej - a[1].prej || b[1].critica - a[1].critica);
+  const tbody = document.getElementById('margem-tbody-comprador');
+  tbody.innerHTML = entries.map(([nome, d]) => {
+    const med = d.margens.length ? (d.margens.reduce((a,b)=>a+b,0)/d.margens.length) : null;
+    const icon = d.prej > 0 ? '🔴' : d.critica > 5 ? '🟠' : d.critica > 0 ? '🟡' : '🟢';
+    const medCls = med !== null ? (med < 0 ? 'marg-neg' : med < 15 ? 'marg-crit' : med < 30 ? 'marg-baixa' : 'marg-ok') : '';
+    return `<tr>
+      <td style="font-weight:600">${icon} ${nome}</td>
+      <td style="text-align:right">${d.total}</td>
+      <td style="text-align:right;color:${d.prej>0?'#f87171':'var(--muted)'};font-weight:${d.prej>0?700:400}">${d.prej}</td>
+      <td style="text-align:right;color:${d.critica>0?'#fbbf24':'var(--muted)'}">${d.critica}</td>
+      <td style="text-align:right;color:var(--muted)">${d.baixa}</td>
+      <td style="text-align:right" class="${medCls}">${med !== null ? med.toFixed(1)+'%' : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportarMargemCsv() {
+  if (!_margemDados.length) { alert('Rode a análise primeiro.'); return; }
+  const header = 'STATUS;PLU;DESCRIÇÃO;COMPRADOR;CURVA;C.HIPCOM;C.REAL;P.VENDA;M.BRUTA%;M.LÍQUIDA%;P.MÍN 30%;AJUSTE;REGIME\n';
+  const body = _margemDados.filter(d => d.status !== 'OK').map(d => [
+    d.status, d.plu, `"${d.descricao}"`, `"${d.comprador}"`, d.curva_abc,
+    String(d.custo_hipcom).replace('.',','), String(d.custo_real).replace('.',','),
+    String(d.preco).replace('.',','),
+    d.margem_bruta != null ? String(d.margem_bruta).replace('.',',') : '',
+    d.margem_liquida != null ? String(d.margem_liquida).replace('.',',') : '',
+    d.preco_min_30 != null ? String(d.preco_min_30).replace('.',',') : '',
+    d.ajuste != null ? String(d.ajuste).replace('.',',') : '',
+    d.regime,
+  ].join(';')).join('\n');
+  const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'alertas-margem.csv'; a.click();
 }
 
 // ── Aba Pedidos ────────────────────────────────────────────────────────────
