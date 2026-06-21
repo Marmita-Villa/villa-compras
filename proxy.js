@@ -892,6 +892,64 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { resultados });
     }
 
+    if (pathname === '/api/margem/divergencias') {
+      const pRows = db.db.prepare("SELECT json FROM produtos WHERE loja=1").all();
+      const prods = [];
+      for (const r of pRows) { try { prods.push(...JSON.parse(r.json)); } catch(e){} }
+      const fiscMapD = {};
+      for (const fr of db.db.prepare("SELECT plu, json FROM fiscal WHERE json IS NOT NULL").all()) {
+        if (!fiscMapD[fr.plu]) { try { fiscMapD[fr.plu] = JSON.parse(fr.json); } catch(e){} }
+      }
+      const divs = [];
+      for (const p of prods) {
+        if (!p.ativo || p.ativo === 'N') continue;
+        const custo = parseFloat(p.custo || 0);
+        const preco = parseFloat(p.valor_produto || 0);
+        const ncmInfo = getNcmInfo(p.ncm);
+        const fRaw = fiscMapD[p.plu];
+        const f = fRaw ? (fRaw[0] || fRaw) : null;
+        const base = { plu:p.plu, descricao:p.descricao, ncm:p.ncm||'', comprador:p.nome_comprador||'', custo, preco, curva:p.curva_abc||'' };
+
+        if (!p.ncm || p.ncm === '00000000' || p.ncm === '') {
+          divs.push({...base, tipo:'SEM_NCM', impacto:'ALTO', detalhe:'NCM não cadastrado — tributação desconhecida, risco de autuação'}); continue;
+        }
+        if (!f) continue; // sem fiscal não dá pra verificar divergência de CST
+
+        const temSTHipcom = String(f.icmsCstSaida||'').trim()==='60';
+        const stAtivaNcm  = ncmInfo && ncmInfo.icms_sp && ncmInfo.icms_sp.st_ativo;
+        const pE=parseFloat(f.pisAlqEntrada||0), cE=parseFloat(f.cofinsAliqEntrada||0);
+        const pS=parseFloat(f.pisAlqSaida||0),   cS=parseFloat(f.cofinsAlqSaida||0);
+        const temPC = pE>0||cE>0||pS>0||cS>0;
+        const regimeNcm = ncmInfo&&ncmInfo.pis_cofins ? ncmInfo.pis_cofins.regime : null;
+        const alqIcmsH = parseFloat(f.icmsAlqEntrada||0);
+        const alqIcmsN = ncmInfo&&ncmInfo.icms_sp ? ncmInfo.icms_sp.aliq : null;
+
+        if (ncmInfo && temSTHipcom && !stAtivaNcm) {
+          divs.push({...base, tipo:'ST_REMOVIDA_ERRADA', impacto:'ALTO',
+            detalhe:'CST 60 (com ST) no Hipcom, mas ST foi removida para este NCM em SP. Crédito ICMS '+alqIcmsN+'% não aproveitado.',
+            valor_impacto: alqIcmsN ? +(custo*(alqIcmsN/100)).toFixed(2) : null });
+        } else if (ncmInfo && !temSTHipcom && stAtivaNcm) {
+          divs.push({...base, tipo:'ST_ATIVA_SEM_CADASTRO', impacto:'ALTO',
+            detalhe:'NCM indica ST ativa em SP mas produto não está cadastrado como CST 60. Risco de autuação fiscal.' });
+        }
+        if (ncmInfo && regimeNcm==='monofasico' && temPC) {
+          divs.push({...base, tipo:'MONOFASICO_ERRADO', impacto:'MEDIO',
+            detalhe:'NCM é monofásico (PIS/COFINS recolhido na indústria) mas Hipcom tem alíquotas de débito (PIS '+pS+'% + COFINS '+cS+'%). Possível débito indevido.',
+            valor_impacto: preco>0 ? +(preco*((pS+cS)/100)).toFixed(2) : null });
+        }
+        if (ncmInfo && regimeNcm==='isento' && temPC) {
+          divs.push({...base, tipo:'ISENTO_TRIBUTADO_ERRADO', impacto:'MEDIO',
+            detalhe:'NCM indica isenção de PIS/COFINS (Cesta Básica/Lei 10.925) mas Hipcom tem alíquotas de débito.',
+            valor_impacto: preco>0 ? +(preco*((pS+cS)/100)).toFixed(2) : null });
+        }
+        if (ncmInfo && alqIcmsN && !temSTHipcom && !stAtivaNcm && Math.abs(alqIcmsH - alqIcmsN) > 2) {
+          divs.push({...base, tipo:'ICMS_DIVERGENTE', impacto:'MEDIO',
+            detalhe:'Alíquota ICMS no Hipcom ('+alqIcmsH+'%) diverge do esperado para o NCM em SP ('+alqIcmsN+'%).' });
+        }
+      }
+      return jRes(res, 200, { divergencias: divs });
+    }
+
     if (pathname === '/api/contaspagar/importar' && req.method === 'POST') {
       const body = await readBody(req);
       const { lancamentos, lojas, periodo } = JSON.parse(body);

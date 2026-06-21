@@ -644,6 +644,98 @@
       </table>
     </div>
 
+    <!-- ── DIVERGÊNCIAS FISCAIS ── -->
+    <div id="div-fiscal-wrap" style="margin-top:28px;border-top:1px solid var(--border);padding-top:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:15px;font-weight:700;color:var(--fg)">⚠️ Divergências Fiscais no Cadastro</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sec" style="font-size:12px;padding:5px 12px" onclick="exportarDivCsv()">⬇ CSV</button>
+          <button class="btn-pri" style="font-size:12px;padding:5px 14px" id="btn-div-rodar" onclick="rodarDivFiscal()">🔍 Analisar Divergências</button>
+        </div>
+      </div>
+
+      <!-- Cards por tipo -->
+      <div id="div-cards" style="display:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
+        <div class="card-resumo-m" style="border-color:#ef444455;cursor:pointer" onclick="filtrarDiv('ST_REMOVIDA_ERRADA')">
+          <div class="crm-label">🔴 ST removida — cad. errado</div>
+          <div class="crm-val" id="dval-st-rem" style="color:#f87171">—</div>
+          <div class="crm-sub">custo inflado, crédito perdido</div>
+        </div>
+        <div class="card-resumo-m" style="border-color:#ef444455;cursor:pointer" onclick="filtrarDiv('ST_ATIVA_SEM_CADASTRO')">
+          <div class="crm-label">🔴 ST ativa — sem CST 60</div>
+          <div class="crm-val" id="dval-st-falta" style="color:#f87171">—</div>
+          <div class="crm-sub">risco de autuação fiscal</div>
+        </div>
+        <div class="card-resumo-m" style="border-color:#ef444455;cursor:pointer" onclick="filtrarDiv('SEM_NCM')">
+          <div class="crm-label">🔴 Sem NCM cadastrado</div>
+          <div class="crm-val" id="dval-sem-ncm" style="color:#f87171">—</div>
+          <div class="crm-sub">tributação desconhecida</div>
+        </div>
+        <div class="card-resumo-m" style="border-color:#f59e0b55;cursor:pointer" onclick="filtrarDiv('MONOFASICO_ERRADO')">
+          <div class="crm-label">🟠 Monofásico tributado errado</div>
+          <div class="crm-val" id="dval-mono" style="color:#fbbf24">—</div>
+          <div class="crm-sub">débito PIS/COFINS indevido</div>
+        </div>
+        <div class="card-resumo-m" style="border-color:#f59e0b55;cursor:pointer" onclick="filtrarDiv('ISENTO_TRIBUTADO_ERRADO')">
+          <div class="crm-label">🟠 Isento tributado errado</div>
+          <div class="crm-val" id="dval-isento" style="color:#fbbf24">—</div>
+          <div class="crm-sub">cesta básica com débito</div>
+        </div>
+        <div class="card-resumo-m" style="border-color:#f59e0b55;cursor:pointer" onclick="filtrarDiv('ICMS_DIVERGENTE')">
+          <div class="crm-label">🟠 Alíquota ICMS divergente</div>
+          <div class="crm-val" id="dval-icms" style="color:#fbbf24">—</div>
+          <div class="crm-sub">diferença &gt;2 p.p. vs NCM</div>
+        </div>
+        <div class="card-resumo-m" style="cursor:pointer" onclick="filtrarDiv('TODOS_DIV')">
+          <div class="crm-label">📋 Total de divergências</div>
+          <div class="crm-val" id="dval-total">—</div>
+          <div class="crm-sub">produtos analisados c/ fiscal</div>
+        </div>
+      </div>
+
+      <!-- Filtros divergências -->
+      <div id="div-filtros" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="div-busca" placeholder="🔍 Buscar produto / PLU…" oninput="renderTabelaDiv()"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--fg);font-size:13px;width:210px">
+        <select id="div-filtro-tipo" onchange="renderTabelaDiv()"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
+          <option value="TODOS_DIV">Todos os tipos</option>
+          <option value="ST_REMOVIDA_ERRADA">🔴 ST removida — cadastro errado</option>
+          <option value="ST_ATIVA_SEM_CADASTRO">🔴 ST ativa — sem CST 60</option>
+          <option value="SEM_NCM">🔴 Sem NCM</option>
+          <option value="MONOFASICO_ERRADO">🟠 Monofásico tributado errado</option>
+          <option value="ISENTO_TRIBUTADO_ERRADO">🟠 Isento tributado errado</option>
+          <option value="ICMS_DIVERGENTE">🟠 ICMS divergente</option>
+        </select>
+        <select id="div-filtro-comprador" onchange="renderTabelaDiv()"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
+          <option value="">Todos compradores</option>
+        </select>
+        <span id="div-contagem" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+      </div>
+
+      <!-- Tabela divergências -->
+      <div id="div-tabela-wrap" style="display:none;overflow-x:auto">
+        <table class="tbl" style="font-size:12px;min-width:900px">
+          <thead>
+            <tr>
+              <th>TIPO</th>
+              <th>IMPACTO</th>
+              <th>PLU</th>
+              <th>DESCRIÇÃO</th>
+              <th>NCM</th>
+              <th>COMPRADOR</th>
+              <th style="text-align:right">CUSTO</th>
+              <th style="text-align:right">PREÇO</th>
+              <th style="text-align:right">VALOR IMPACTO</th>
+              <th>DETALHE</th>
+            </tr>
+          </thead>
+          <tbody id="div-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Resumo por comprador -->
     <div id="margem-resumo-comprador" style="display:none;margin-top:20px">
       <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:10px">📊 Resumo por Comprador</div>
@@ -1734,6 +1826,115 @@ function renderResumoComprador() {
       <td style="text-align:right" class="${medCls}">${med !== null ? med.toFixed(1)+'%' : '—'}</td>
     </tr>`;
   }).join('');
+}
+
+// ── Divergências Fiscais ──────────────────────────────────
+let _divDados = [];
+
+async function rodarDivFiscal() {
+  const btn = document.getElementById('btn-div-rodar');
+  btn.disabled = true; btn.textContent = '⏳ Analisando…';
+  try {
+    const r = await fetch('/api/margem/divergencias');
+    const j = await r.json();
+    _divDados = j.divergencias || [];
+    preencherFiltroCompradorDiv();
+    atualizarCardsDiv();
+    renderTabelaDiv();
+    document.getElementById('div-cards').style.display    = 'grid';
+    document.getElementById('div-filtros').style.display  = 'flex';
+    document.getElementById('div-tabela-wrap').style.display = '';
+  } catch(e) { alert('Erro: ' + e.message); }
+  btn.disabled = false; btn.textContent = '🔄 Atualizar';
+}
+
+function atualizarCardsDiv() {
+  const cnt = t => _divDados.filter(d => d.tipo === t).length;
+  document.getElementById('dval-st-rem').textContent   = cnt('ST_REMOVIDA_ERRADA');
+  document.getElementById('dval-st-falta').textContent = cnt('ST_ATIVA_SEM_CADASTRO');
+  document.getElementById('dval-sem-ncm').textContent  = cnt('SEM_NCM');
+  document.getElementById('dval-mono').textContent     = cnt('MONOFASICO_ERRADO');
+  document.getElementById('dval-isento').textContent   = cnt('ISENTO_TRIBUTADO_ERRADO');
+  document.getElementById('dval-icms').textContent     = cnt('ICMS_DIVERGENTE');
+  document.getElementById('dval-total').textContent    = _divDados.length;
+}
+
+function preencherFiltroCompradorDiv() {
+  const sel = document.getElementById('div-filtro-comprador');
+  const set = [...new Set(_divDados.map(d => d.comprador).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos compradores</option>' +
+    set.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function filtrarDiv(tipo) {
+  document.getElementById('div-filtro-tipo').value = tipo;
+  renderTabelaDiv();
+  document.getElementById('div-tabela-wrap').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderTabelaDiv() {
+  const busca = (document.getElementById('div-busca').value || '').toLowerCase();
+  const fTipo = document.getElementById('div-filtro-tipo').value;
+  const fComp = document.getElementById('div-filtro-comprador').value;
+
+  let dados = _divDados.filter(d => {
+    if (busca && !d.descricao.toLowerCase().includes(busca) && !String(d.plu).includes(busca)) return false;
+    if (fComp && d.comprador !== fComp) return false;
+    if (fTipo !== 'TODOS_DIV' && d.tipo !== fTipo) return false;
+    return true;
+  });
+
+  document.getElementById('div-contagem').textContent = `${dados.length} divergências`;
+
+  const brl = v => v != null ? 'R$ ' + Number(v).toFixed(2).replace('.', ',') : '—';
+
+  const tipoBadge = t => {
+    const map = {
+      ST_REMOVIDA_ERRADA:      ['bs-red',    '🔴 ST removida — cad. errado'],
+      ST_ATIVA_SEM_CADASTRO:   ['bs-red',    '🔴 ST ativa sem CST 60'],
+      SEM_NCM:                 ['bs-red',    '🔴 Sem NCM'],
+      MONOFASICO_ERRADO:       ['bs-orange', '🟠 Monofásico errado'],
+      ISENTO_TRIBUTADO_ERRADO: ['bs-orange', '🟠 Isento errado'],
+      ICMS_DIVERGENTE:         ['bs-orange', '🟠 ICMS divergente'],
+    };
+    const [cls, txt] = map[t] || ['bs-muted', t];
+    return `<span class="badge-status ${cls}">${txt}</span>`;
+  };
+
+  const impBadge = i => i === 'ALTO'
+    ? '<span class="badge-status bs-red">ALTO</span>'
+    : '<span class="badge-status bs-orange">MÉDIO</span>';
+
+  document.getElementById('div-tbody').innerHTML = dados.slice(0, 500).map(d => `
+    <tr>
+      <td>${tipoBadge(d.tipo)}</td>
+      <td>${impBadge(d.impacto)}</td>
+      <td style="color:var(--muted);font-size:11px">${d.plu}</td>
+      <td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${d.descricao}">${d.descricao}</td>
+      <td style="font-size:11px;color:var(--muted)">${d.ncm || '—'}</td>
+      <td style="font-size:11px">${d.comprador || '—'}</td>
+      <td style="text-align:right">${brl(d.custo)}</td>
+      <td style="text-align:right">${brl(d.preco)}</td>
+      <td style="text-align:right;${d.valor_impacto > 0 ? 'color:#f87171;font-weight:700' : ''}">${brl(d.valor_impacto)}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:260px" title="${d.detalhe}">${d.detalhe}</td>
+    </tr>`).join('');
+
+  if (dados.length > 500)
+    document.getElementById('div-tbody').innerHTML += `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:10px">Mostrando 500 de ${dados.length}. Use os filtros.</td></tr>`;
+}
+
+function exportarDivCsv() {
+  if (!_divDados.length) { alert('Rode a análise primeiro.'); return; }
+  const header = 'TIPO;IMPACTO;PLU;DESCRIÇÃO;NCM;COMPRADOR;CURVA;CUSTO;PREÇO;VALOR IMPACTO;DETALHE\n';
+  const body = _divDados.map(d => [
+    d.tipo, d.impacto, d.plu, `"${d.descricao}"`, d.ncm, `"${d.comprador}"`, d.curva,
+    String(d.custo||'').replace('.',','), String(d.preco||'').replace('.',','),
+    d.valor_impacto != null ? String(d.valor_impacto).replace('.',',') : '',
+    `"${d.detalhe}"`,
+  ].join(';')).join('\n');
+  const blob = new Blob(['﻿' + header + body], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'divergencias-fiscais.csv'; a.click();
 }
 
 function exportarMargemCsv() {
