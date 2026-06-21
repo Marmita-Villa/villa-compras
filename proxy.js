@@ -19,6 +19,8 @@ const DIAS_HIST   = 90;
 const LOJAS_ATIVAS = process.env.LOJAS_ATIVAS
   ? process.env.LOJAS_ATIVAS.split(',').map(Number)
   : null; // null = todas
+// Loja CD: estoque conta para compra mas não entra no cálculo de vendas
+const LOJA_CD = process.env.LOJA_CD ? Number(process.env.LOJA_CD) : 2;
 
 // ── Tabela NCM ─────────────────────────────────────────────────────────────
 let NCM_TABLE = {};
@@ -269,34 +271,36 @@ async function rodarSync(jid, lojaId, diasHist) {
 async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
   const j = jobs.get(jid);
   try {
-    const lojaIds = Array.isArray(lojas) ? lojas : [parseInt(lojas)];
-    const lojaRef = lojaIds[0]; // referência para cadastro de produtos/fiscal
+    const lojaIds  = Array.isArray(lojas) ? lojas : [parseInt(lojas)];
+    const lojaRef  = lojaIds[0];
+    // Lojas de venda = todas exceto o CD
+    const lojaVenda = lojaIds.filter(l => l !== LOJA_CD);
 
     jAtualiza(jid, 2, 'Carregando produtos...');
     const todosProd = await loadProdutos(lojaRef);
     const prodMap   = {};
     todosProd.forEach(p => { prodMap[p.plu] = p; });
 
-    jAtualiza(jid, 5, 'Carregando vinculação fornecedor-produto...');
-    const fpPorLoja = {};
-    await Promise.all(lojaIds.map(async lid => { fpPorLoja[lid] = await loadFP(lid); }));
+    // Vínculo fornecedor→produto via compras reais do banco (90 dias, todas as lojas)
+    jAtualiza(jid, 5, 'Identificando produtos do fornecedor pelas compras...');
+    const plusSet  = new Set();
+    const dataFim    = today();
+    const dataInicio = daysAgo(diasAnalise);
+    const datas      = dateRange(dataInicio, dataFim);
 
-    // União de PLUs deste fornecedor em todas as lojas selecionadas
-    const plusSet = new Set();
-    lojaIds.forEach(lid => {
-      (fpPorLoja[lid] || []).filter(fp => String(fp.fornecedor) === String(fornecedorId))
-        .forEach(fp => plusSet.add(fp.plu));
-    });
+    for (const lid of lojaIds) {
+      for (const dt of datas) {
+        (db.getCompras(lid, dt) || []).forEach(c => {
+          if (String(c.codigo_fornecedor) === String(fornecedorId)) plusSet.add(c.plu);
+        });
+      }
+    }
     const plus = [...plusSet];
     if (!plus.length) { j.done = true; j.resultado = []; return; }
     j.totalProdutos = plus.length;
 
     jAtualiza(jid, 8, `${plus.length} produtos. Verificando fiscal no banco...`);
     const fiscalMap = await loadFiscalBatch(lojaRef, plus, jid, 8, 35);
-
-    const dataFim    = today();
-    const dataInicio = daysAgo(diasAnalise);
-    const datas      = dateRange(dataInicio, dataFim);
 
     // Carrega vendas, estoques e compras de cada loja
     const vendasPorLoja  = {}; // lid → plu → { total, dias, valorTotal }
@@ -392,11 +396,13 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       });
 
       // Agregado total
-      const vTotal    = porLoja.reduce((s, l) => s + l.venda_total,   0);
-      const vDiasMedia= lojaIds.reduce((s, lid) => s + (vendasPorLoja[lid][plu]?.dias || 0), 0) / lojaIds.length;
-      const estAtual  = porLoja.reduce((s, l) => s + l.estoque,       0);
-      const estInicio = porLoja.reduce((s, l) => s + l.estoque_ini,   0);
-      const totalCmp  = porLoja.reduce((s, l) => s + l.compras,       0);
+      // Vendas: só lojas de venda (exceto CD)
+      const vTotal     = porLoja.filter(l => l.loja !== LOJA_CD).reduce((s, l) => s + l.venda_total, 0);
+      const vDiasMedia = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.dias || 0), 0) / Math.max(lojaVenda.length, 1);
+      // Estoque: todas as lojas (CD + lojas de venda)
+      const estAtual  = porLoja.reduce((s, l) => s + l.estoque,    0);
+      const estInicio = porLoja.reduce((s, l) => s + l.estoque_ini, 0);
+      const totalCmp  = porLoja.reduce((s, l) => s + l.compras,    0);
 
       const vendaMediaDia = diasAnalise > 0 ? vTotal / diasAnalise : 0;
       const quebraEst     = Math.max(0, estInicio + totalCmp - vTotal - estAtual);
