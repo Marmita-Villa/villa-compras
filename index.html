@@ -696,8 +696,9 @@ async function carregarFornecedores(lojaId) {
     // Monta HTML de uma vez só (innerHTML += em loop trava o browser com centenas de itens)
     sel.innerHTML = '<option value="">— Selecione o Fornecedor —</option>' +
       lista.map(f => {
-        const nome = (f.fantasia && f.fantasia.trim()) || f.razao || `Fornecedor ${f.codigo}`;
-        return `<option value="${f.codigo}">${nome}</option>`;
+        const razao = (f.razao && f.razao.trim()) || (f.fantasia && f.fantasia.trim()) || `Fornecedor ${f.codigo}`;
+        const cnpj  = f.cnpj ? ` · CNPJ: ${String(f.cnpj).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}` : '';
+        return `<option value="${f.codigo}">${razao}${cnpj}</option>`;
       }).join('');
   } catch(e) {
     sel.innerHTML = '<option value="">Erro ao carregar fornecedores</option>';
