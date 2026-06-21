@@ -791,7 +791,7 @@ function atualizarProgresso(pct, etapa, totalProd) {
 }
 
 function renderizar() {
-  document.getElementById('section-result').style.display = '';
+  document.getElementById('section-result').style.display = 'block';
   filtroAtivo = 'todos';
   document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('f-todos').classList.add('active');
