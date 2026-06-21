@@ -291,8 +291,15 @@
           </div>
         </div>
       </label>
-      <label>Fornecedor
-        <select id="sel-forn"><option value="">— selecione as lojas —</option></select>
+      <label style="position:relative">Fornecedor
+        <div id="forn-combo" style="position:relative;min-width:320px">
+          <input id="forn-busca" type="text" autocomplete="off" placeholder="Digite para buscar fornecedor..."
+            style="width:100%;padding:8px 30px 8px 10px;background:#1a1d2e;border:1px solid #2d3148;border-radius:6px;color:#e2e8f0;font-size:0.85rem;cursor:pointer"
+            onfocus="abrirFornDropdown()" oninput="filtrarFornDropdown()" onkeydown="fornKeydown(event)"/>
+          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#64748b;pointer-events:none">▾</span>
+          <div id="forn-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:280px;overflow-y:auto;background:#1a1d2e;border:1px solid #2d3148;border-radius:6px;z-index:9999;box-shadow:0 8px 24px #0008"></div>
+        </div>
+        <input type="hidden" id="sel-forn" value=""/>
       </label>
       <label>Período de análise (dias)
         <input type="number" id="inp-dias" value="30" min="1" max="365" style="min-width:110px"/>
@@ -680,30 +687,117 @@ async function carregarLojas() {
   }
 }
 
-// ── Carrega fornecedores ───────────────────────────────────────────────────
-let _fornCache = null; // cache em memória para não repetir fetch na mesma sessão
-async function carregarFornecedores(lojaId) {
-  const sel = document.getElementById('sel-forn');
+// ── Fornecedor combobox ────────────────────────────────────────────────────
+let _fornCache  = null;
+let _fornLista  = [];   // lista ordenada
+let _fornIdx    = -1;   // índice selecionado no dropdown
+
+function _fornLabel(f) {
+  const razao = (f.razao && f.razao.trim()) || (f.fantasia && f.fantasia.trim()) || `Fornecedor ${f.codigo}`;
+  const cnpj  = f.cnpj ? ` · ${String(f.cnpj).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}` : '';
+  return razao + cnpj;
+}
+
+async function carregarFornecedores() {
+  const inp = document.getElementById('forn-busca');
   try {
     if (!_fornCache) {
-      const res  = await fetch(`${API}/api/fornecedores`);
+      inp.placeholder = 'Carregando fornecedores...';
+      const res = await fetch(`${API}/api/fornecedores`);
       _fornCache = await res.json();
     }
-    const lista = (Array.isArray(_fornCache) ? _fornCache : [])
+    _fornLista = (Array.isArray(_fornCache) ? _fornCache : [])
       .filter(f => f.codigo > 0 && (f.razao || f.fantasia))
-      .sort((a,b) => (a.fantasia||a.razao||'').localeCompare(b.fantasia||b.razao||''));
-
-    // Monta HTML de uma vez só (innerHTML += em loop trava o browser com centenas de itens)
-    sel.innerHTML = '<option value="">— Selecione o Fornecedor —</option>' +
-      lista.map(f => {
-        const razao = (f.razao && f.razao.trim()) || (f.fantasia && f.fantasia.trim()) || `Fornecedor ${f.codigo}`;
-        const cnpj  = f.cnpj ? ` · CNPJ: ${String(f.cnpj).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}` : '';
-        return `<option value="${f.codigo}">${razao}${cnpj}</option>`;
-      }).join('');
+      .sort((a, b) => {
+        const la = (a.razao || a.fantasia || '').trim().toUpperCase();
+        const lb = (b.razao || b.fantasia || '').trim().toUpperCase();
+        return la.localeCompare(lb, 'pt-BR');
+      });
+    inp.placeholder = 'Digite para buscar fornecedor...';
   } catch(e) {
-    sel.innerHTML = '<option value="">Erro ao carregar fornecedores</option>';
+    inp.placeholder = 'Erro ao carregar fornecedores';
   }
 }
+
+function _fornRenderDropdown(lista) {
+  const dd = document.getElementById('forn-dropdown');
+  if (!lista.length) {
+    dd.innerHTML = '<div style="padding:10px 14px;color:#64748b;font-size:0.82rem">Nenhum fornecedor encontrado</div>';
+    return;
+  }
+  dd.innerHTML = lista.slice(0, 150).map((f, i) =>
+    `<div class="forn-opt" data-cod="${f.codigo}" data-idx="${i}"
+      style="padding:8px 14px;cursor:pointer;font-size:0.82rem;border-bottom:1px solid #2d314820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmousedown="selecionarForn('${f.codigo}','${_fornLabel(f).replace(/'/g, "\\'")}')"
+      onmouseover="realcarForn(${i})">${_fornLabel(f)}</div>`
+  ).join('') + (lista.length > 150 ? `<div style="padding:8px 14px;color:#64748b;font-size:0.75rem">+${lista.length - 150} — refine a busca</div>` : '');
+  _fornIdx = -1;
+}
+
+function abrirFornDropdown() {
+  const busca = document.getElementById('forn-busca').value.trim();
+  const lista = busca ? _fornFiltrar(busca) : _fornLista;
+  _fornRenderDropdown(lista);
+  document.getElementById('forn-dropdown').style.display = 'block';
+}
+
+function filtrarFornDropdown() {
+  const busca = document.getElementById('forn-busca').value.trim();
+  const lista = busca ? _fornFiltrar(busca) : _fornLista;
+  _fornRenderDropdown(lista);
+  document.getElementById('forn-dropdown').style.display = 'block';
+  // Limpar seleção ao digitar
+  document.getElementById('sel-forn').value = '';
+}
+
+function _fornFiltrar(q) {
+  const termos = q.toUpperCase().split(/\s+/).filter(Boolean);
+  return _fornLista.filter(f => {
+    const txt = _fornLabel(f).toUpperCase();
+    return termos.every(t => txt.includes(t));
+  });
+}
+
+function selecionarForn(cod, label) {
+  document.getElementById('sel-forn').value  = cod;
+  document.getElementById('forn-busca').value = label;
+  document.getElementById('forn-dropdown').style.display = 'none';
+  _fornIdx = -1;
+}
+
+function realcarForn(idx) {
+  _fornIdx = idx;
+  document.querySelectorAll('.forn-opt').forEach((el, i) => {
+    el.style.background = i === idx ? '#2d3148' : '';
+  });
+}
+
+function fornKeydown(e) {
+  const dd = document.getElementById('forn-dropdown');
+  const opts = [...dd.querySelectorAll('.forn-opt')];
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _fornIdx = Math.min(_fornIdx + 1, opts.length - 1);
+    opts.forEach((el, i) => el.style.background = i === _fornIdx ? '#2d3148' : '');
+    opts[_fornIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _fornIdx = Math.max(_fornIdx - 1, 0);
+    opts.forEach((el, i) => el.style.background = i === _fornIdx ? '#2d3148' : '');
+    opts[_fornIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && _fornIdx >= 0) {
+    e.preventDefault();
+    opts[_fornIdx]?.dispatchEvent(new MouseEvent('mousedown'));
+  } else if (e.key === 'Escape') {
+    dd.style.display = 'none';
+  }
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', e => {
+  if (!document.getElementById('forn-combo')?.contains(e.target))
+    document.getElementById('forn-dropdown').style.display = 'none';
+});
 
 // ── Analisar com barra de progresso ───────────────────────────────────────
 let pollTimer = null;
