@@ -312,6 +312,38 @@ if (!db.prepare('SELECT id FROM usuarios LIMIT 1').get()) {
   console.log('[auth] Usuário padrão criado: admin / villa2025');
 }
 
+// ── Pedidos de Compra ─────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pedidos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    fornecedor TEXT    NOT NULL,
+    forn_nome  TEXT,
+    data       TEXT    NOT NULL,
+    obs        TEXT,
+    itens      TEXT    NOT NULL,
+    total      REAL    NOT NULL DEFAULT 0,
+    num_itens  INTEGER NOT NULL DEFAULT 0,
+    usuario    TEXT,
+    criado_em  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  );
+`);
+
+function salvarPedido(p, usuario) {
+  const r = db.prepare(
+    'INSERT INTO pedidos(fornecedor,forn_nome,data,obs,itens,total,num_itens,usuario) VALUES(?,?,?,?,?,?,?,?)'
+  ).run(p.fornecedor, p.forn_nome||'', p.data, p.obs||'', JSON.stringify(p.itens), p.total||0, (p.itens||[]).length, usuario||'');
+  return r.lastInsertRowid;
+}
+function listarPedidos() {
+  return db.prepare('SELECT id,fornecedor,forn_nome,data,obs,total,num_itens,criado_em FROM pedidos ORDER BY criado_em DESC').all();
+}
+function verPedido(id) {
+  return db.prepare('SELECT * FROM pedidos WHERE id=?').get(id);
+}
+function deletarPedido(id) {
+  db.prepare('DELETE FROM pedidos WHERE id=?').run(id);
+}
+
 // ── Prazos por Fornecedor ──────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS fornecedor_prazos (
@@ -344,6 +376,7 @@ module.exports = {
   getFiscal, setFiscal, plusSemFiscal,
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
+  salvarPedido, listarPedidos, verPedido, deletarPedido,
   getPrazo, setPrazo,
   criarUsuario, autenticarUsuario, criarSessao, getSessao, deleteSessao,
   listarUsuarios, deletarUsuario, alterarSenha,

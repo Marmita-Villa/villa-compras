@@ -257,6 +257,7 @@
   <div class="tabs-bar">
     <button class="tab-nav active" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
     <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
+    <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
   </div>
 
   <!-- Seção: Análise de Compras -->
@@ -451,7 +452,99 @@
 
   </div><!-- /section-fluxo -->
 
+  <!-- Seção: Pedidos -->
+  <div id="section-pedido" style="display:none">
+
+    <!-- Novo Pedido -->
+    <div class="panel" id="painel-novo-pedido">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <div class="panel-title" style="margin:0">📋 Novo Pedido de Compra</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sec" onclick="pedidoCarregarAnalise()" style="font-size:12px;padding:6px 14px">⬇ Carregar da Análise</button>
+          <button class="btn-sec" onclick="pedidoSalvar()" style="font-size:12px;padding:6px 14px;background:rgba(34,197,94,.12);border-color:#22c55e;color:#22c55e" id="btn-salvar-pedido" disabled>💾 Salvar Pedido</button>
+          <button class="btn-sec" onclick="pedidoImprimir()" style="font-size:12px;padding:6px 14px" id="btn-imprimir-pedido" disabled>🖨 Imprimir</button>
+          <button class="btn-sec" onclick="pedidoLimpar()" style="font-size:12px;padding:6px 14px;background:rgba(239,68,68,.1);border-color:#ef4444;color:#ef4444">✕ Limpar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <label style="flex:1;min-width:200px">Fornecedor<input id="ped-forn-nome" readonly style="width:100%;margin-top:4px;background:#0f1117;border:1px solid #2d3148;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px" placeholder="— carregue da análise ou selecione —"/><input type="hidden" id="ped-forn-cod"/></label>
+        <label style="min-width:140px">Data do Pedido<input type="date" id="ped-data" style="width:100%;margin-top:4px;background:#0f1117;border:1px solid #2d3148;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px"/></label>
+        <label style="flex:1;min-width:200px">Observações<input id="ped-obs" type="text" placeholder="Ex: pedido extra, reposição urgente..." style="width:100%;margin-top:4px;background:#0f1117;border:1px solid #2d3148;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px"/></label>
+      </div>
+
+      <div id="ped-aviso" style="display:none;padding:10px 14px;background:#1e1b40;border:1px solid #7c6af7;border-radius:8px;font-size:12px;color:#a78bfa;margin-bottom:12px"></div>
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="ped-tabela">
+          <thead>
+            <tr style="background:#1a1d2e;color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:.04em">
+              <th style="padding:8px 10px;text-align:left;min-width:180px">Produto</th>
+              <th style="padding:8px 6px;text-align:center">PLU</th>
+              <th style="padding:8px 6px;text-align:center">Qtd Sug.</th>
+              <th style="padding:8px 6px;text-align:center;min-width:90px">Qtd Pedido</th>
+              <th style="padding:8px 6px;text-align:right">Custo Atual</th>
+              <th style="padding:8px 6px;text-align:right;min-width:110px">Custo Negoc.</th>
+              <th style="padding:8px 6px;text-align:right">C.Real Atual</th>
+              <th style="padding:8px 6px;text-align:right">C.Real Negoc.</th>
+              <th style="padding:8px 6px;text-align:center">Δ%</th>
+              <th style="padding:8px 6px;text-align:right">Preço Venda</th>
+              <th style="padding:8px 6px;text-align:right">Margem Atual</th>
+              <th style="padding:8px 6px;text-align:right">Margem Negoc.</th>
+              <th style="padding:8px 6px;text-align:right">Total Item</th>
+              <th style="padding:8px 6px"></th>
+            </tr>
+          </thead>
+          <tbody id="ped-tbody">
+            <tr><td colspan="14" style="text-align:center;padding:32px;color:#64748b">Carregue itens da análise ou adicione manualmente.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="ped-totais" style="display:none;margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end">
+        <div style="background:#1a1d2e;border:1px solid #2d3148;border-radius:8px;padding:12px 20px;text-align:right">
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">TOTAL DO PEDIDO</div>
+          <div id="ped-total-val" style="font-size:22px;font-weight:700;color:#22c55e">R$ 0,00</div>
+        </div>
+        <div style="background:#1a1d2e;border:1px solid #2d3148;border-radius:8px;padding:12px 20px;text-align:right">
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">ITENS</div>
+          <div id="ped-total-itens" style="font-size:22px;font-weight:700;color:#a78bfa">0</div>
+        </div>
+        <div style="background:#1a1d2e;border:1px solid #2d3148;border-radius:8px;padding:12px 20px;text-align:right">
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">MARGEM MÉDIA NEGOC.</div>
+          <div id="ped-total-margem" style="font-size:22px;font-weight:700;color:#f59e0b">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Histórico de Pedidos -->
+    <div class="panel" style="margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="panel-title" style="margin:0">📂 Histórico de Pedidos</div>
+        <button class="btn-sec" onclick="pedidoCarregarHistorico()" style="font-size:12px;padding:6px 14px">↻ Atualizar</button>
+      </div>
+      <div id="ped-historico">
+        <div style="text-align:center;padding:24px;color:#64748b;font-size:13px">Nenhum pedido salvo ainda.</div>
+      </div>
+    </div>
+
+  </div><!-- /section-pedido -->
+
 </main>
+
+<!-- Modal visualizar pedido salvo -->
+<div id="modal-pedido-ver" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center;overflow:auto">
+  <div style="background:#161820;border:1px solid #2d2f3e;border-radius:12px;padding:28px;width:900px;max-width:96vw;max-height:90vh;overflow-y:auto;margin:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 id="modal-ped-titulo" style="font-size:15px;color:#a78bfa">Pedido</h3>
+      <div style="display:flex;gap:8px">
+        <button onclick="pedidoImprimirSalvo()" style="background:rgba(124,106,247,.15);border:1px solid #7c6af7;color:#a78bfa;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">🖨 Imprimir</button>
+        <button onclick="document.getElementById('modal-pedido-ver').style.display='none'" style="background:none;border:none;color:#8892a4;font-size:20px;cursor:pointer">✕</button>
+      </div>
+    </div>
+    <div id="modal-ped-conteudo"></div>
+  </div>
+</div>
 
 <script>
 const API = window.location.origin;
@@ -1199,9 +1292,354 @@ let syncPollTimer = null;
 function switchTab(tab) {
   document.getElementById('section-analise').style.display = tab === 'analise' ? '' : 'none';
   document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
+  document.getElementById('section-pedido').style.display  = tab === 'pedido'  ? '' : 'none';
   document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
   document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
+  document.getElementById('tab-pedido-btn').classList.toggle('active',  tab === 'pedido');
   if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
+  if (tab === 'pedido') { pedidoCarregarHistorico(); }
+}
+
+// ── Aba Pedidos ────────────────────────────────────────────────────────────
+
+let _pedItens = []; // itens do pedido em edição
+
+// Inicializar data padrão
+(function() {
+  const inp = document.getElementById('ped-data');
+  if (inp) inp.value = new Date().toISOString().slice(0,10);
+})();
+
+function _pedCustoReal(custoNegoc, custoHipcom, custoReal) {
+  if (!custoHipcom || custoHipcom === 0) return custoNegoc;
+  return custoNegoc * (custoReal / custoHipcom);
+}
+
+function _pedMargem(preco, custoRealNegoc, fiscal) {
+  if (!preco || preco === 0) return null;
+  const ca = fiscal?.cenario_atual;
+  if (!ca) return null;
+  const totImpSaida = ca.tot_imp_saida || 0;
+  return ((preco - custoRealNegoc - totImpSaida) / preco) * 100;
+}
+
+function pedidoCarregarAnalise() {
+  if (!DADOS || !DADOS.length) {
+    alert('Rode uma análise primeiro na aba "Análise de Compras".');
+    return;
+  }
+  // Pegar fornecedor da análise
+  const fornNome = document.getElementById('forn-busca').value;
+  const fornCod  = document.getElementById('sel-forn').value;
+  document.getElementById('ped-forn-nome').value = fornNome;
+  document.getElementById('ped-forn-cod').value  = fornCod;
+
+  // Carregar todos os produtos (não só os recomendados) para o usuário decidir
+  _pedItens = DADOS.map(d => ({
+    plu:         d.plu,
+    nome:        d.nome,
+    qtd_sug:     d.qtd_comprar || 0,
+    qtd_pedido:  d.qtd_comprar || 0,
+    custo_hipcom: d.fiscal?.custo_hipcom || 0,
+    custo_negoc:  d.fiscal?.custo_hipcom || 0,
+    custo_real:   d.fiscal?.cenario_atual?.custo_real || 0,
+    preco_venda:  d.fiscal?.preco_venda || 0,
+    margem_atual: d.fiscal?.cenario_atual?.margem_liquida ?? null,
+    fiscal:       d.fiscal,
+    status:       d.status,
+  }));
+
+  pedidoRenderTabela();
+  switchTab('pedido');
+}
+
+function pedidoRenderTabela() {
+  const tbody = document.getElementById('ped-tbody');
+  if (!_pedItens.length) {
+    tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:32px;color:#64748b">Nenhum item. Carregue da análise.</td></tr>';
+    document.getElementById('btn-salvar-pedido').disabled = true;
+    document.getElementById('btn-imprimir-pedido').disabled = true;
+    document.getElementById('ped-totais').style.display = 'none';
+    return;
+  }
+
+  tbody.innerHTML = _pedItens.map((it, i) => {
+    const custoRealNeg = _pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real);
+    const margemNeg    = _pedMargem(it.preco_venda, custoRealNeg, it.fiscal);
+    const delta        = it.custo_hipcom > 0 ? ((it.custo_negoc - it.custo_hipcom) / it.custo_hipcom * 100) : 0;
+    const total        = it.qtd_pedido * it.custo_negoc;
+    const deltaColor   = delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : '#64748b';
+    const margemColor  = margemNeg == null ? '#64748b' : margemNeg < 0 ? '#ef4444' : margemNeg < 25 ? '#f59e0b' : '#22c55e';
+    const statusBg     = it.status === 'OK' || it.qtd_sug > 0 ? '' : 'opacity:.55';
+    return `<tr style="${statusBg};border-bottom:1px solid #1e2235">
+      <td style="padding:7px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.nome}">${it.nome}</td>
+      <td style="padding:7px 6px;text-align:center;color:#64748b">${it.plu}</td>
+      <td style="padding:7px 6px;text-align:center;color:#a78bfa">${it.qtd_sug || '—'}</td>
+      <td style="padding:4px 6px;text-align:center">
+        <input type="number" min="0" step="1" value="${it.qtd_pedido}"
+          style="width:70px;background:#0f1117;border:1px solid #2d3148;border-radius:4px;padding:4px 6px;color:#e2e8f0;font-size:12px;text-align:center"
+          onchange="pedidoUpdateItem(${i},'qtd_pedido',+this.value)"/>
+      </td>
+      <td style="padding:7px 6px;text-align:right;color:#94a3b8">R$ ${R(it.custo_hipcom)}</td>
+      <td style="padding:4px 6px;text-align:right">
+        <input type="number" min="0" step="0.01" value="${it.custo_negoc.toFixed(4)}"
+          style="width:90px;background:#0f1117;border:1px solid #2d3148;border-radius:4px;padding:4px 6px;color:#e2e8f0;font-size:12px;text-align:right"
+          onchange="pedidoUpdateItem(${i},'custo_negoc',+this.value)"/>
+      </td>
+      <td style="padding:7px 6px;text-align:right;color:#94a3b8">R$ ${R(it.custo_real)}</td>
+      <td style="padding:7px 6px;text-align:right;font-weight:600">R$ ${R(custoRealNeg)}</td>
+      <td style="padding:7px 6px;text-align:center;font-weight:700;color:${deltaColor}">${delta !== 0 ? (delta > 0 ? '+' : '') + delta.toFixed(1) + '%' : '—'}</td>
+      <td style="padding:7px 6px;text-align:right;color:#64748b">R$ ${R(it.preco_venda)}</td>
+      <td style="padding:7px 6px;text-align:right;color:${it.margem_atual != null ? (it.margem_atual < 25 ? '#f59e0b' : '#22c55e') : '#64748b'}">${it.margem_atual != null ? it.margem_atual.toFixed(1) + '%' : '—'}</td>
+      <td style="padding:7px 6px;text-align:right;font-weight:700;color:${margemColor}">${margemNeg != null ? margemNeg.toFixed(1) + '%' : '—'}</td>
+      <td style="padding:7px 6px;text-align:right;font-weight:600;color:#22c55e">R$ ${R(total)}</td>
+      <td style="padding:7px 6px;text-align:center"><button onclick="pedidoRemoverItem(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  pedidoAtualizarTotais();
+  document.getElementById('btn-salvar-pedido').disabled = false;
+  document.getElementById('btn-imprimir-pedido').disabled = false;
+  document.getElementById('ped-totais').style.display = 'flex';
+}
+
+function pedidoUpdateItem(i, campo, val) {
+  _pedItens[i][campo] = val;
+  pedidoRenderTabela();
+}
+
+function pedidoRemoverItem(i) {
+  _pedItens.splice(i, 1);
+  pedidoRenderTabela();
+}
+
+function pedidoAtualizarTotais() {
+  const itensComQtd = _pedItens.filter(it => it.qtd_pedido > 0);
+  const total  = itensComQtd.reduce((s, it) => s + it.qtd_pedido * it.custo_negoc, 0);
+  const margens = itensComQtd.map(it => {
+    const cr = _pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real);
+    return _pedMargem(it.preco_venda, cr, it.fiscal);
+  }).filter(m => m != null);
+  const margemMedia = margens.length ? margens.reduce((s,m) => s+m, 0) / margens.length : null;
+
+  document.getElementById('ped-total-val').textContent    = 'R$ ' + R(total);
+  document.getElementById('ped-total-itens').textContent  = itensComQtd.length;
+  document.getElementById('ped-total-margem').textContent = margemMedia != null ? margemMedia.toFixed(1) + '%' : '—';
+  const mc = document.getElementById('ped-total-margem');
+  mc.style.color = margemMedia == null ? '#f59e0b' : margemMedia < 25 ? '#ef4444' : margemMedia < 35 ? '#f59e0b' : '#22c55e';
+}
+
+async function pedidoSalvar() {
+  const fornCod  = document.getElementById('ped-forn-cod').value;
+  const fornNome = document.getElementById('ped-forn-nome').value;
+  const data     = document.getElementById('ped-data').value;
+  const obs      = document.getElementById('ped-obs').value;
+  if (!fornCod) { alert('Informe o fornecedor.'); return; }
+  if (!data)    { alert('Informe a data do pedido.'); return; }
+  const itensComQtd = _pedItens.filter(it => it.qtd_pedido > 0).map(it => {
+    const custoRealNeg = _pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real);
+    const margemNeg    = _pedMargem(it.preco_venda, custoRealNeg, it.fiscal);
+    return { plu: it.plu, nome: it.nome, qtd_sug: it.qtd_sug, qtd_pedido: it.qtd_pedido,
+             custo_hipcom: it.custo_hipcom, custo_negoc: it.custo_negoc,
+             custo_real_atual: it.custo_real, custo_real_negoc: +custoRealNeg.toFixed(4),
+             preco_venda: it.preco_venda, margem_atual: it.margem_atual,
+             margem_negoc: margemNeg != null ? +margemNeg.toFixed(2) : null,
+             total_item: +(it.qtd_pedido * it.custo_negoc).toFixed(2) };
+  });
+  if (!itensComQtd.length) { alert('Nenhum item com quantidade > 0.'); return; }
+  const total = itensComQtd.reduce((s, it) => s + it.total_item, 0);
+  const btn = document.getElementById('btn-salvar-pedido');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    const r = await fetch(`${API}/api/pedidos/salvar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fornecedor: fornCod, forn_nome: fornNome, data, obs, itens: itensComQtd, total: +total.toFixed(2) })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || 'Erro ao salvar');
+    alert(`Pedido #${d.id} salvo com sucesso!`);
+    pedidoCarregarHistorico();
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Salvar Pedido';
+  }
+}
+
+async function pedidoCarregarHistorico() {
+  const el = document.getElementById('ped-historico');
+  el.innerHTML = '<div style="color:#64748b;font-size:13px;padding:16px">Carregando...</div>';
+  try {
+    const lista = await fetch(`${API}/api/pedidos/listar`).then(r => r.json());
+    if (!lista.length) {
+      el.innerHTML = '<div style="text-align:center;padding:24px;color:#64748b;font-size:13px">Nenhum pedido salvo ainda.</div>';
+      return;
+    }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:#1a1d2e;color:#64748b;text-transform:uppercase;font-size:10px">
+        <th style="padding:8px 10px;text-align:left">#</th>
+        <th style="padding:8px 10px;text-align:left">Data</th>
+        <th style="padding:8px 10px;text-align:left">Fornecedor</th>
+        <th style="padding:8px 10px;text-align:left">Observações</th>
+        <th style="padding:8px 6px;text-align:center">Itens</th>
+        <th style="padding:8px 10px;text-align:right">Total</th>
+        <th style="padding:8px 10px;text-align:center">Ações</th>
+      </tr></thead>
+      <tbody>${lista.map(p => `
+        <tr style="border-bottom:1px solid #1e2235">
+          <td style="padding:8px 10px;color:#a78bfa;font-weight:700">#${p.id}</td>
+          <td style="padding:8px 10px">${formatarData(p.data)}</td>
+          <td style="padding:8px 10px">${p.forn_nome || '—'}</td>
+          <td style="padding:8px 10px;color:#64748b">${p.obs || '—'}</td>
+          <td style="padding:8px 6px;text-align:center">${p.num_itens}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:700;color:#22c55e">R$ ${R(p.total)}</td>
+          <td style="padding:8px 6px;text-align:center;display:flex;gap:6px;justify-content:center">
+            <button onclick="pedidoVer(${p.id})" style="background:rgba(124,106,247,.15);border:1px solid #7c6af7;color:#a78bfa;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">👁 Ver</button>
+            <button onclick="pedidoDeletar(${p.id})" style="background:rgba(239,68,68,.1);border:1px solid #ef4444;color:#ef4444;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">🗑</button>
+          </td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#fca5a5;padding:16px">Erro ao carregar histórico.</div>';
+  }
+}
+
+let _pedidoSalvoAtual = null;
+
+async function pedidoVer(id) {
+  const modal = document.getElementById('modal-pedido-ver');
+  const conteudo = document.getElementById('modal-ped-conteudo');
+  modal.style.display = 'flex';
+  conteudo.innerHTML = '<div style="color:#64748b;padding:20px">Carregando...</div>';
+  try {
+    const p = await fetch(`${API}/api/pedidos/ver?id=${id}`).then(r => r.json());
+    _pedidoSalvoAtual = p;
+    document.getElementById('modal-ped-titulo').textContent = `Pedido #${p.id} — ${p.forn_nome || ''} — ${formatarData(p.data)}`;
+    const itens = JSON.parse(p.itens || '[]');
+    conteudo.innerHTML = `
+      ${p.obs ? `<div style="margin-bottom:12px;font-size:12px;color:#94a3b8">📝 ${p.obs}</div>` : ''}
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#1a1d2e;color:#64748b;text-transform:uppercase;font-size:10px">
+          <th style="padding:7px 10px;text-align:left">Produto</th>
+          <th style="padding:7px 6px;text-align:center">PLU</th>
+          <th style="padding:7px 6px;text-align:center">Qtd</th>
+          <th style="padding:7px 6px;text-align:right">Custo Hipcom</th>
+          <th style="padding:7px 6px;text-align:right">Custo Negoc.</th>
+          <th style="padding:7px 6px;text-align:right">C.Real Atual</th>
+          <th style="padding:7px 6px;text-align:right">C.Real Negoc.</th>
+          <th style="padding:7px 6px;text-align:center">Δ%</th>
+          <th style="padding:7px 6px;text-align:right">Preço Venda</th>
+          <th style="padding:7px 6px;text-align:right">Margem Atual</th>
+          <th style="padding:7px 6px;text-align:right">Margem Negoc.</th>
+          <th style="padding:7px 6px;text-align:right">Total</th>
+        </tr></thead>
+        <tbody>${itens.map(it => {
+          const delta = it.custo_hipcom > 0 ? ((it.custo_negoc - it.custo_hipcom) / it.custo_hipcom * 100) : 0;
+          const dc = delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : '#64748b';
+          const mc = it.margem_negoc == null ? '#64748b' : it.margem_negoc < 0 ? '#ef4444' : it.margem_negoc < 25 ? '#f59e0b' : '#22c55e';
+          return `<tr style="border-bottom:1px solid #1e2235">
+            <td style="padding:7px 10px">${it.nome}</td>
+            <td style="padding:7px 6px;text-align:center;color:#64748b">${it.plu}</td>
+            <td style="padding:7px 6px;text-align:center;font-weight:700">${it.qtd_pedido}</td>
+            <td style="padding:7px 6px;text-align:right;color:#94a3b8">R$ ${R(it.custo_hipcom)}</td>
+            <td style="padding:7px 6px;text-align:right;font-weight:600">R$ ${R(it.custo_negoc)}</td>
+            <td style="padding:7px 6px;text-align:right;color:#94a3b8">R$ ${R(it.custo_real_atual)}</td>
+            <td style="padding:7px 6px;text-align:right;font-weight:600">R$ ${R(it.custo_real_negoc)}</td>
+            <td style="padding:7px 6px;text-align:center;font-weight:700;color:${dc}">${delta !== 0 ? (delta > 0 ? '+' : '') + delta.toFixed(1) + '%' : '—'}</td>
+            <td style="padding:7px 6px;text-align:right;color:#64748b">R$ ${R(it.preco_venda)}</td>
+            <td style="padding:7px 6px;text-align:right">${it.margem_atual != null ? it.margem_atual.toFixed(1) + '%' : '—'}</td>
+            <td style="padding:7px 6px;text-align:right;font-weight:700;color:${mc}">${it.margem_negoc != null ? it.margem_negoc.toFixed(1) + '%' : '—'}</td>
+            <td style="padding:7px 6px;text-align:right;font-weight:700;color:#22c55e">R$ ${R(it.total_item)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div style="margin-top:16px;text-align:right;font-size:18px;font-weight:700;color:#22c55e">Total: R$ ${R(p.total)}</div>`;
+  } catch(e) {
+    conteudo.innerHTML = '<div style="color:#fca5a5">Erro ao carregar pedido.</div>';
+  }
+}
+
+async function pedidoDeletar(id) {
+  if (!confirm(`Deletar pedido #${id}?`)) return;
+  await fetch(`${API}/api/pedidos/deletar?id=${id}`, { method: 'DELETE' });
+  pedidoCarregarHistorico();
+}
+
+function pedidoLimpar() {
+  _pedItens = [];
+  document.getElementById('ped-forn-nome').value = '';
+  document.getElementById('ped-forn-cod').value  = '';
+  document.getElementById('ped-obs').value       = '';
+  document.getElementById('ped-data').value      = new Date().toISOString().slice(0,10);
+  pedidoRenderTabela();
+}
+
+function _pedidoHtmlImpressao(titulo, itens, total, obs) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titulo}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:11px;color:#000;margin:20px}
+    h2{font-size:14px;margin-bottom:4px} p{margin:2px 0;color:#444;font-size:10px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th{background:#eee;padding:5px 6px;text-align:left;font-size:9px;text-transform:uppercase;border:1px solid #ccc}
+    td{padding:5px 6px;border:1px solid #ddd;font-size:10px}
+    .total{text-align:right;font-size:13px;font-weight:700;margin-top:10px}
+    @media print{body{margin:8px}}
+  </style></head><body>
+  <h2>${titulo}</h2>
+  ${obs ? `<p>Obs: ${obs}</p>` : ''}
+  <table><thead><tr>
+    <th>Produto</th><th>PLU</th><th>Qtd</th>
+    <th>Custo Hipcom</th><th>Custo Negoc.</th><th>C.Real Atual</th><th>C.Real Negoc.</th>
+    <th>Δ%</th><th>Preço Venda</th><th>Margem Atual</th><th>Margem Negoc.</th><th>Total</th>
+  </tr></thead><tbody>
+  ${itens.map(it => {
+    const delta = it.custo_hipcom > 0 ? ((it.custo_negoc - it.custo_hipcom) / it.custo_hipcom * 100) : 0;
+    return `<tr>
+      <td>${it.nome}</td><td>${it.plu}</td><td style="text-align:center">${it.qtd_pedido}</td>
+      <td>R$ ${R(it.custo_hipcom)}</td><td><b>R$ ${R(it.custo_negoc)}</b></td>
+      <td>R$ ${R(it.custo_real_atual ?? it.custo_real)}</td><td><b>R$ ${R(it.custo_real_negoc ?? it.custo_real)}</b></td>
+      <td>${delta !== 0 ? (delta > 0 ? '+' : '') + delta.toFixed(1) + '%' : '—'}</td>
+      <td>R$ ${R(it.preco_venda)}</td>
+      <td>${it.margem_atual != null ? it.margem_atual.toFixed(1) + '%' : '—'}</td>
+      <td><b>${it.margem_negoc != null ? it.margem_negoc.toFixed(1) + '%' : '—'}</b></td>
+      <td><b>R$ ${R(it.total_item ?? it.qtd_pedido * it.custo_negoc)}</b></td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>
+  <div class="total">Total do Pedido: R$ ${R(total)}</div>
+  <script>window.onload=()=>{ window.print(); }<\/script>
+  </body></html>`;
+}
+
+function pedidoImprimir() {
+  if (!_pedItens.length) return;
+  const fornNome = document.getElementById('ped-forn-nome').value;
+  const data     = document.getElementById('ped-data').value;
+  const obs      = document.getElementById('ped-obs').value;
+  const itensComQtd = _pedItens.filter(it => it.qtd_pedido > 0).map(it => ({
+    ...it,
+    custo_real_atual: it.custo_real,
+    custo_real_negoc: +_pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real).toFixed(4),
+    margem_negoc: +(_pedMargem(it.preco_venda, _pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real), it.fiscal) ?? 0).toFixed(2),
+    total_item: +(it.qtd_pedido * it.custo_negoc).toFixed(2),
+  }));
+  const total = itensComQtd.reduce((s, it) => s + it.total_item, 0);
+  const titulo = `Pedido — ${fornNome} — ${formatarData(data)}`;
+  const w = window.open('', '_blank');
+  w.document.write(_pedidoHtmlImpressao(titulo, itensComQtd, total, obs));
+  w.document.close();
+}
+
+function pedidoImprimirSalvo() {
+  if (!_pedidoSalvoAtual) return;
+  const p = _pedidoSalvoAtual;
+  const itens = JSON.parse(p.itens || '[]');
+  const titulo = `Pedido #${p.id} — ${p.forn_nome || ''} — ${formatarData(p.data)}`;
+  const w = window.open('', '_blank');
+  w.document.write(_pedidoHtmlImpressao(titulo, itens, p.total, p.obs));
+  w.document.close();
 }
 
 // ── Utilitários CP ─────────────────────────────────────────────────────────

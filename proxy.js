@@ -774,6 +774,26 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { dados: j.resultado, avisoSync: j.avisoSync || null });
     }
 
+    // ── Pedidos de Compra ─────────────────────────────────────────────────
+    if (pathname === '/api/pedidos/salvar' && req.method === 'POST') {
+      const body = await readBody(req);
+      const p = JSON.parse(body);
+      const id = db.salvarPedido(p, sess?.usuario || '');
+      return jRes(res, 200, { id });
+    }
+    if (pathname === '/api/pedidos/listar') {
+      return jRes(res, 200, db.listarPedidos());
+    }
+    if (pathname === '/api/pedidos/ver') {
+      const p = db.verPedido(parseInt(q.id));
+      if (!p) return jRes(res, 404, { erro: 'Pedido não encontrado' });
+      return jRes(res, 200, p);
+    }
+    if (pathname === '/api/pedidos/deletar' && req.method === 'DELETE') {
+      db.deletarPedido(parseInt(q.id));
+      return jRes(res, 200, { ok: true });
+    }
+
     // ── Prazos por Fornecedor ─────────────────────────────────────────────
     if (pathname === '/api/prazos/get') {
       return jRes(res, 200, db.getPrazo(parseInt(q.fornecedor || '0')));
