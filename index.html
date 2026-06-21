@@ -786,7 +786,7 @@ function atualizarProgresso(pct, etapa, totalProd) {
   document.getElementById('prog-fill').style.width  = pct + '%';
   document.getElementById('prog-pct').textContent   = pct + '%';
   document.getElementById('prog-etapa').textContent = etapa || '';
-  const sub = totalProd ? `${totalProd} produtos deste fornecedor` : 'Buscando dados na Hipcom...';
+  const sub = totalProd ? `${totalProd} produtos deste fornecedor` : 'Lendo banco local...';
   document.getElementById('prog-sub').textContent = sub;
 }
 
