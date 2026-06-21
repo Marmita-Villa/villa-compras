@@ -1429,31 +1429,42 @@ async function carregarCalDados() {
   } catch(e) { /* silencioso */ }
 }
 
-// ── Sync: loja anterior (barra de banco usa qualquer loja disponível) ───────
+// ── Sync: sincroniza todas as lojas em sequência ──────────────────────────
 async function iniciarSync() {
-  const lojas = getLojasSelecionadas();
-  const lojaId = lojas[0];
-  if (!lojaId) { alert('Selecione ao menos uma unidade antes de sincronizar.'); return; }
-
   const btn = document.getElementById('btn-sync');
   btn.disabled = true;
   document.getElementById('prog-overlay').classList.add('show');
   document.querySelector('#prog-overlay h3').textContent = '🔄 Sincronizando banco local...';
-  atualizarProgresso(0, 'Conectando ao Hipcom...');
+  atualizarProgresso(0, 'Carregando lista de lojas...');
 
   try {
-    const { jobId } = await fetch(`${API}/api/sync/iniciar?loja=${lojaId}&dias=90`).then(r => r.json());
-    await new Promise((resolve, reject) => {
-      syncPollTimer = setInterval(async () => {
-        try {
-          const p = await fetch(`${API}/api/sync/progresso?job=${jobId}`).then(r => r.json());
-          atualizarProgresso(p.pct, p.etapa);
-          if (p.done || p.erro) { clearInterval(syncPollTimer); if (p.erro) reject(new Error(p.erro)); else resolve(); }
-        } catch(e) { clearInterval(syncPollTimer); reject(e); }
-      }, 700);
-    });
-    fecharProgresso();
-    document.querySelector('#prog-overlay h3').textContent = '🔍 Analisando fornecedor...';
+    // Usa todas as lojas disponíveis, não depende de seleção
+    const lojas = todasLojas.length ? todasLojas : await fetch(`${API}/api/lojas`).then(r => r.json());
+    const ids = lojas.map(l => l.loja);
+
+    for (let i = 0; i < ids.length; i++) {
+      const lid = ids[i];
+      const nome = lojas.find(l => l.loja === lid)?.fantasia || `Loja ${lid}`;
+      atualizarProgresso(Math.round(i / ids.length * 100), `[${i+1}/${ids.length}] Sincronizando ${nome}...`);
+
+      const { jobId } = await fetch(`${API}/api/sync/iniciar?loja=${lid}&dias=90`).then(r => r.json());
+      await new Promise((resolve, reject) => {
+        syncPollTimer = setInterval(async () => {
+          try {
+            const p = await fetch(`${API}/api/sync/progresso?job=${jobId}`).then(r => r.json());
+            const pctGlobal = Math.round((i / ids.length + p.pct / 100 / ids.length) * 100);
+            atualizarProgresso(pctGlobal, `[${i+1}/${ids.length}] ${nome}: ${p.etapa}`);
+            if (p.done || p.erro) { clearInterval(syncPollTimer); if (p.erro) reject(new Error(p.erro)); else resolve(); }
+          } catch(e) { clearInterval(syncPollTimer); reject(e); }
+        }, 700);
+      });
+    }
+
+    atualizarProgresso(100, 'Sincronização concluída!');
+    setTimeout(() => {
+      fecharProgresso();
+      document.querySelector('#prog-overlay h3').textContent = '🔍 Analisando fornecedor...';
+    }, 1200);
     await atualizarStatusBanco();
   } catch(e) {
     fecharProgresso();
