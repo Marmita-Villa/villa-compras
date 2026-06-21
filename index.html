@@ -648,25 +648,56 @@ function renderDetalhe(d, idx) {
       `:''}
     </div>`;
 
+  // Cálculo de ST retida pelo fornecedor (se não repassou o desconto)
+  const _aliqST   = ant ? (ant.custo_hipcom / f.custo_hipcom - 1) : 0.12;
+  const _custoJusto   = f.custo_hipcom / (1 + _aliqST);          // o que deveria cobrar
+  const _stRetidaUnit = f.custo_hipcom - _custoJusto;             // retido por unidade
+  const _stRetidaPct  = (_stRetidaUnit / f.custo_hipcom * 100);   // % sobre custo atual
+  const _margemJusta  = ca.margem_liquida != null && f.preco_venda > 0
+    ? ((f.preco_venda - _custoJusto * (ca.custo_real / f.custo_hipcom) - ca.tot_imp_saida) / f.preco_venda * 100)
+    : null;
+
   const boxAnterior = ant ? `
-    <div class="detail-box" style="border-color:rgba(239,68,68,.4)">
-      <h4 style="color:#fca5a5">🔴 Cenário ANTES da Remoção da ST</h4>
-      <div style="font-size:11px;color:#fca5a5;margin-bottom:10px">Estimativa de como era o cálculo quando a ST estava ativa. Use para comparar o impacto real.</div>
-      <div class="detail-row"><span class="k">Custo estimado c/ ST</span><span class="v">R$ ${R(ant.custo_hipcom)}</span></div>
-      <div class="detail-row"><span class="k">Custo real (sem ST)</span><span class="v">R$ ${R(ant.custo_real)}</span></div>
-      <div class="detail-row"><span class="k">Total imp. saída (c/ ST)</span><span class="v">R$ ${R(ant.tot_imp_saida)}</span></div>
-      <div class="detail-sep"></div>
-      <div class="detail-row"><span class="k">Margem líquida antes</span><span class="v" style="color:${margemColor(ant.margem_liquida)}">${ant.margem_liquida!=null?R(ant.margem_liquida,1)+'%':'—'}</span></div>
-      <div class="detail-row"><span class="k"><strong>Margem líquida AGORA</strong></span><span class="v" style="color:${margemColor(ca.margem_liquida)}"><strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong></span></div>
-      <div class="detail-row"><span class="k">Variação de margem</span>
-        <span class="v" style="color:${ant.margem_liquida!=null&&ca.margem_liquida!=null&&(ca.margem_liquida-ant.margem_liquida)<0?'var(--danger)':'var(--ok)'}">
-          ${ant.margem_liquida!=null&&ca.margem_liquida!=null?(ca.margem_liquida-ant.margem_liquida>0?'+':'')+R(ca.margem_liquida-ant.margem_liquida,1)+'p.p.':'—'}
-        </span>
+    <div class="detail-box" style="border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.05)">
+      <h4 style="color:#fca5a5">🔴 ST Removida — Análise de Repasse</h4>
+      <div style="font-size:11px;color:#fca5a5;margin-bottom:12px">
+        ${ni&&ni.st_portaria?'📄 '+ni.st_portaria:''}
+        ${ni&&ni.st_data_remocao?' · Vigência: <strong>'+ni.st_data_remocao+'</strong>':''}
       </div>
-      <div class="detail-sep"></div>
-      <div style="font-size:11px;color:#fca5a5">
-        ${(f.ncm_info&&f.ncm_info.st_portaria)?'📄 '+f.ncm_info.st_portaria:''}
-        ${(f.ncm_info&&f.ncm_info.st_data_remocao)?'&nbsp;· Vigência: '+f.ncm_info.st_data_remocao:''}
+
+      <!-- Bloco ST Retida -->
+      <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">⚠ Se o fornecedor NÃO repassou o desconto</div>
+        <div class="detail-row"><span class="k">Custo cobrado (Hipcom)</span><span class="v"><strong>R$ ${R(f.custo_hipcom)}</strong></span></div>
+        <div class="detail-row"><span class="k">Custo justo sem ST (${R(_aliqST*100,1)}%)</span><span class="v" style="color:#22c55e"><strong>R$ ${R(_custoJusto)}</strong></span></div>
+        <div class="detail-row"><span class="k" style="color:#fca5a5"><strong>ST retida por unidade</strong></span><span class="v" style="color:#fca5a5;font-size:15px"><strong>R$ ${R(_stRetidaUnit)} (${R(_stRetidaPct,1)}%)</strong></span></div>
+        ${d.qtd_comprar > 0 ? `<div class="detail-row" style="margin-top:4px"><span class="k" style="color:#fca5a5">ST retida no pedido (${d.qtd_comprar} un)</span><span class="v" style="color:#fca5a5;font-weight:700">R$ ${R(_stRetidaUnit * d.qtd_comprar)}</span></div>` : ''}
+        <div class="detail-sep"></div>
+        <div class="detail-row"><span class="k">Margem atual (custo alto)</span><span class="v" style="color:${margemColor(ca.margem_liquida)}">${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</span></div>
+        <div class="detail-row"><span class="k">Margem justa (custo correto)</span><span class="v" style="color:${margemColor(_margemJusta)}"><strong>${_margemJusta!=null?R(_margemJusta,1)+'%':'—'}</strong></span></div>
+        ${_margemJusta!=null&&ca.margem_liquida!=null?`<div class="detail-row"><span class="k">Ganho de margem possível</span><span class="v" style="color:#22c55e;font-weight:700">+${R(_margemJusta-ca.margem_liquida,1)} p.p.</span></div>`:''}
+      </div>
+
+      <!-- Argumento de negociação -->
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#fbbf24;margin-bottom:6px">💬 ARGUMENTO PARA NEGOCIAÇÃO</div>
+        <div style="font-size:11px;color:#e2e8f0;line-height:1.6">
+          "Esse produto saiu da ST em SP${ni&&ni.st_portaria?' ('+ni.st_portaria+')':''}.
+          Com ST o custo estimado era <strong>R$ ${R(ant.custo_hipcom)}</strong>.
+          Sem ST o justo é <strong>R$ ${R(_custoJusto)}</strong>.
+          Vocês continuam cobrando <strong>R$ ${R(f.custo_hipcom)}</strong> —
+          isso representa <strong>R$ ${R(_stRetidaUnit)}/un</strong> que deveria ter sido repassado.${d.qtd_comprar>0?' No pedido de '+d.qtd_comprar+' unidades, o impacto é de R$ '+R(_stRetidaUnit*d.qtd_comprar)+'.':''}"
+        </div>
+      </div>
+
+      <!-- Cenário anterior resumido -->
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600">COMPARATIVO DE MARGEM</div>
+      <div class="detail-row"><span class="k">Margem antes da remoção ST</span><span class="v" style="color:${margemColor(ant.margem_liquida)}">${ant.margem_liquida!=null?R(ant.margem_liquida,1)+'%':'—'}</span></div>
+      <div class="detail-row"><span class="k">Margem atual (custo não ajustado)</span><span class="v" style="color:${margemColor(ca.margem_liquida)}"><strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong></span></div>
+      <div class="detail-row"><span class="k">Variação</span>
+        <span class="v" style="color:${ant.margem_liquida!=null&&ca.margem_liquida!=null&&(ca.margem_liquida-ant.margem_liquida)>=0?'var(--ok)':'var(--danger)'}">
+          ${ant.margem_liquida!=null&&ca.margem_liquida!=null?(ca.margem_liquida-ant.margem_liquida>=0?'+':'')+R(ca.margem_liquida-ant.margem_liquida,1)+'p.p.':'—'}
+        </span>
       </div>
     </div>` : `
     <div class="detail-box">
