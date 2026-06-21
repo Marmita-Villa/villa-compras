@@ -749,12 +749,18 @@ async function analisar() {
     atualizarProgresso(100, 'Montando resultado...');
     const rRes = await fetch(`${API}/api/analise/resultado?job=${jobId}`);
     const data = await rRes.json();
-    if (!Array.isArray(data)) throw new Error(data.erro || 'Resposta inesperada');
+    if (data.erro) throw new Error(data.erro);
+    if (!data.dados) throw new Error('Resposta inesperada');
 
-    DADOS = data;
+    DADOS = data.dados;
     expandidos.clear();
     fecharProgresso();
     renderizar();
+
+    if (data.avisoSync) {
+      const el = document.getElementById('status-banco');
+      if (el) el.innerHTML = `⚠️ Banco desatualizado — sincronize antes de analisar. <small style="color:#f59e0b">${data.avisoSync}</small>`;
+    }
 
   } catch(e) {
     fecharProgresso();

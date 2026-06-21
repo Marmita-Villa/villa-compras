@@ -300,23 +300,18 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
     const estIniPorLoja  = {}; // lid → plu → qtd
     const comprasPorLoja = {}; // lid → plu → qtd
 
-    // Busca paralela com limite de concorrência (8 req simultâneas por loja, lojas em paralelo)
-    async function fetchBatch(items, fn, concurrency = 8) {
-      for (let i = 0; i < items.length; i += concurrency)
-        await Promise.all(items.slice(i, i + concurrency).map(fn));
-    }
+    jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
-    jAtualiza(jid, 36, `Buscando dados de ${lojaIds.length} loja(s) em paralelo...`);
-
-    await Promise.all(lojaIds.map(async (lid, li) => {
-      // Vendas em lotes de 8 dias simultâneos
+    // Análise lê APENAS do banco local — nunca chama a Hipcom
+    // Para atualizar os dados use "Sincronizar Banco"
+    const datasComDados = {};
+    for (const lid of lojaIds) {
       const faltandoV = db.datasFaltandoVendas(lid, datas);
-      if (faltandoV.length) {
-        jAtualiza(jid, 38, `Vendas loja ${lid}: ${faltandoV.length} dias a buscar...`);
-        await fetchBatch(faltandoV, async dt => {
-          db.setVendas(lid, dt, await hGetAll(`/api/hipcom/vendasprodutos?loja=${lid}&data=${dt}`));
-        });
+      const faltandoC = db.datasFaltandoCompras(lid, datas);
+      if (faltandoV.length || faltandoC.length) {
+        datasComDados[lid] = { faltaVendas: faltandoV.length, faltaCompras: faltandoC.length };
       }
+
       vendasPorLoja[lid] = {};
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
@@ -328,23 +323,11 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         });
       }
 
-      // Estoques (2 datas em paralelo por loja)
-      const [estIniArr, estFimArr] = await Promise.all([
-        loadEstoque(lid, dataInicio),
-        loadEstoque(lid, dataFim),
-      ]);
       estIniPorLoja[lid] = {};
       estFimPorLoja[lid] = {};
-      estIniArr.forEach(e => { estIniPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
-      estFimArr.forEach(e => { estFimPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
+      (db.getEstoque(lid, dataInicio) || []).forEach(e => { estIniPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
+      (db.getEstoque(lid, dataFim)    || []).forEach(e => { estFimPorLoja[lid][e.plu]  = parseFloat(e.quantidade_total || 0); });
 
-      // Compras em lotes de 8 dias simultâneos
-      const faltandoC = db.datasFaltandoCompras(lid, datas);
-      if (faltandoC.length) {
-        await fetchBatch(faltandoC, async dt => {
-          db.setCompras(lid, dt, await hGetAll(`/api/hipcom/comprasprodutos?loja=${lid}&data=${dt}`));
-        });
-      }
       comprasPorLoja[lid] = {};
       for (const dt of datas) {
         (db.getCompras(lid, dt) || []).forEach(c => {
@@ -352,7 +335,15 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
           comprasPorLoja[lid][c.plu] += parseFloat(c.quantidade_total || 0);
         });
       }
-    }));
+    }
+
+    // Avisa se há dados faltando (banco desatualizado)
+    const lojasSemDados = Object.keys(datasComDados);
+    if (lojasSemDados.length) {
+      const aviso = lojasSemDados.map(lid => `Loja ${lid}: ${datasComDados[lid].faltaVendas} dias de vendas e ${datasComDados[lid].faltaCompras} de compras faltando`).join('; ');
+      console.warn('[analise] Banco desatualizado —', aviso);
+      j.avisoSync = aviso;
+    }
 
     jAtualiza(jid, 80, 'Calculando sugestões e transferências...');
 
@@ -770,7 +761,7 @@ const server = http.createServer(async (req, res) => {
       if (!j) return jRes(res, 404, { erro: 'Job não encontrado' });
       if (!j.done) return jRes(res, 202, { msg:'Processando', pct:j.pct });
       if (j.erro)  return jRes(res, 500, { erro:j.erro });
-      return jRes(res, 200, j.resultado);
+      return jRes(res, 200, { dados: j.resultado, avisoSync: j.avisoSync || null });
     }
 
     // ── Prazos por Fornecedor ─────────────────────────────────────────────
