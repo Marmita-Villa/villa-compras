@@ -274,7 +274,7 @@
     <button class="tab-nav active" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
     <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
     <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
-    <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')">📊 Análise de Margem</button>
+    <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')" style="display:none">📊 Análise de Margem</button>
   </div>
 
   <!-- Seção: Análise de Compras -->
@@ -2743,7 +2743,10 @@ async function alterarSenha() {
     if (!r.ok) { window.location.href = '/login'; return; }
     const u = await r.json();
     document.getElementById('hdr-usuario').textContent = u.nome;
-    if (u.admin) document.getElementById('btn-usuarios').style.display = 'inline-block';
+    if (u.admin) {
+      document.getElementById('btn-usuarios').style.display = 'inline-block';
+      document.getElementById('tab-margem-btn').style.display = 'inline-block';
+    }
   } catch(e) { window.location.href = '/login'; return; }
   carregarLojas();
   carregarFornecedores();
