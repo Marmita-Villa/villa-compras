@@ -244,6 +244,74 @@ function getStats() {
   return { diasVendas, diasHistorico, fiscal, produtos, minVenda, maxVenda };
 }
 
+// ── Usuários e Sessões ────────────────────────────────────────────────────
+const crypto = require('crypto');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS usuarios (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome       TEXT    NOT NULL,
+    usuario    TEXT    NOT NULL UNIQUE,
+    senha_hash TEXT    NOT NULL,
+    salt       TEXT    NOT NULL,
+    admin      INTEGER NOT NULL DEFAULT 0,
+    criado_em  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  );
+  CREATE TABLE IF NOT EXISTS sessoes (
+    token      TEXT    NOT NULL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    expira_em  INTEGER NOT NULL
+  );
+`);
+
+function hashSenha(senha, salt) {
+  return crypto.scryptSync(senha, salt, 64).toString('hex');
+}
+function criarUsuario(nome, usuario, senha, admin = 0) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = hashSenha(senha, salt);
+  return db.prepare('INSERT INTO usuarios(nome,usuario,senha_hash,salt,admin) VALUES(?,?,?,?,?)').run(nome, usuario, hash, salt, admin ? 1 : 0);
+}
+function autenticarUsuario(usuario, senha) {
+  const u = db.prepare('SELECT * FROM usuarios WHERE usuario=?').get(usuario);
+  if (!u) return null;
+  if (hashSenha(senha, u.salt) !== u.senha_hash) return null;
+  return u;
+}
+function criarSessao(usuarioId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expira = Math.floor(Date.now() / 1000) + 8 * 3600; // 8h
+  db.prepare('INSERT INTO sessoes(token,usuario_id,expira_em) VALUES(?,?,?)').run(token, usuarioId, expira);
+  return token;
+}
+function getSessao(token) {
+  if (!token) return null;
+  const s = db.prepare('SELECT s.*, u.nome, u.usuario, u.admin FROM sessoes s JOIN usuarios u ON u.id=s.usuario_id WHERE s.token=?').get(token);
+  if (!s || s.expira_em < Math.floor(Date.now() / 1000)) { if (s) db.prepare('DELETE FROM sessoes WHERE token=?').run(token); return null; }
+  return s;
+}
+function deleteSessao(token) {
+  db.prepare('DELETE FROM sessoes WHERE token=?').run(token);
+}
+function listarUsuarios() {
+  return db.prepare('SELECT id,nome,usuario,admin,criado_em FROM usuarios ORDER BY id').all();
+}
+function deletarUsuario(id) {
+  db.prepare('DELETE FROM sessoes WHERE usuario_id=?').run(id);
+  db.prepare('DELETE FROM usuarios WHERE id=?').run(id);
+}
+function alterarSenha(id, novaSenha) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = hashSenha(novaSenha, salt);
+  db.prepare('UPDATE usuarios SET senha_hash=?, salt=? WHERE id=?').run(hash, salt, id);
+}
+
+// Criar admin padrão se não existir nenhum usuário
+if (!db.prepare('SELECT id FROM usuarios LIMIT 1').get()) {
+  criarUsuario('Administrador', 'admin', 'villa2025', 1);
+  console.log('[auth] Usuário padrão criado: admin / villa2025');
+}
+
 // ── Prazos por Fornecedor ──────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS fornecedor_prazos (
@@ -277,4 +345,6 @@ module.exports = {
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
   getPrazo, setPrazo,
+  criarUsuario, autenticarUsuario, criarSessao, getSessao, deleteSessao,
+  listarUsuarios, deletarUsuario, alterarSenha,
 };

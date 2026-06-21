@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Sugestão de Compras</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #161820;
+    border: 1px solid #2d2f3e;
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .logo {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .logo h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .logo p {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+  .badge {
+    display: inline-block;
+    background: #7c6af7;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+  input {
+    width: 100%;
+    background: #0f1117;
+    border: 1px solid #2d2f3e;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: #7c6af7; }
+  .btn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 11px;
+    background: #7c6af7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #6a58e0; }
+  .btn:disabled { background: #4a4469; cursor: not-allowed; }
+  .erro {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: #3b1c1c;
+    border: 1px solid #7f1d1d;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #fca5a5;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>🛒 Sugestão de Compras</h1>
+    <p>Empório Villa Borghese</p>
+    <span class="badge">LUCRO REAL · SP</span>
+  </div>
+  <form id="form" autocomplete="off">
+    <label for="usuario">Usuário</label>
+    <input id="usuario" type="text" placeholder="seu.usuario" autocomplete="username" required>
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" placeholder="••••••••" autocomplete="current-password" required>
+    <button class="btn" type="submit" id="btn">Entrar</button>
+    <div class="erro" id="erro"></div>
+  </form>
+</div>
+<script>
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn  = document.getElementById('btn');
+  const erro = document.getElementById('erro');
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  erro.style.display = 'none';
+  try {
+    const r = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usuario: document.getElementById('usuario').value.trim(),
+        senha:   document.getElementById('senha').value,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.erro || 'Erro ao entrar');
+    window.location.href = '/';
+  } catch(e) {
+    erro.textContent = e.message;
+    erro.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+});
+</script>
+</body>
+</html>

@@ -626,8 +626,83 @@ const server = http.createServer(async (req, res) => {
   const q        = parsed.query;
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type' });
+    res.writeHead(204, { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type' });
     return res.end();
+  }
+
+  // ── Helpers de cookie ──────────────────────────────────────────────────────
+  function getCookie(name) {
+    const c = (req.headers.cookie || '').split(';').map(s => s.trim());
+    const found = c.find(s => s.startsWith(name + '='));
+    return found ? found.slice(name.length + 1) : null;
+  }
+  function setCookie(res, name, value, maxAge) {
+    res.setHeader('Set-Cookie', `${name}=${value}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax`);
+  }
+
+  // ── Rotas públicas: login ──────────────────────────────────────────────────
+  if (req.method === 'GET' && pathname === '/login') {
+    const f = path.join(__dirname, 'login.html');
+    if (fs.existsSync(f)) { res.writeHead(200, {'Content-Type':'text/html; charset=utf-8'}); return res.end(fs.readFileSync(f,'utf8')); }
+  }
+
+  if (req.method === 'POST' && pathname === '/auth/login') {
+    const body = JSON.parse(await readBody(req) || '{}');
+    const u = db.autenticarUsuario(body.usuario, body.senha);
+    if (!u) return jRes(res, 401, { erro: 'Usuário ou senha incorretos' });
+    const token = db.criarSessao(u.id);
+    setCookie(res, 'sess', token, 8 * 3600);
+    return jRes(res, 200, { ok: true, nome: u.nome, admin: u.admin });
+  }
+
+  if (req.method === 'POST' && pathname === '/auth/logout') {
+    const token = getCookie('sess');
+    if (token) db.deleteSessao(token);
+    setCookie(res, 'sess', '', 0);
+    return jRes(res, 200, { ok: true });
+  }
+
+  // ── Verificação de sessão para todas as outras rotas ───────────────────────
+  const token = getCookie('sess');
+  const sessao = db.getSessao(token);
+  if (!sessao) {
+    if (req.method === 'GET' && !pathname.startsWith('/api/')) {
+      res.writeHead(302, { Location: '/login' }); return res.end();
+    }
+    return jRes(res, 401, { erro: 'Não autenticado' });
+  }
+
+  // ── Rotas de gestão de usuários (admin) ────────────────────────────────────
+  if (pathname === '/auth/me') return jRes(res, 200, { nome: sessao.nome, usuario: sessao.usuario, admin: sessao.admin });
+
+  if (pathname === '/auth/usuarios') {
+    if (!sessao.admin) return jRes(res, 403, { erro: 'Acesso negado' });
+    if (req.method === 'GET') return jRes(res, 200, db.listarUsuarios());
+    if (req.method === 'POST') {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (!body.usuario || !body.senha || !body.nome) return jRes(res, 400, { erro: 'nome, usuario e senha são obrigatórios' });
+      try {
+        db.criarUsuario(body.nome, body.usuario, body.senha, body.admin || 0);
+        return jRes(res, 201, { ok: true });
+      } catch(e) {
+        return jRes(res, 409, { erro: 'Usuário já existe' });
+      }
+    }
+  }
+
+  if (pathname.startsWith('/auth/usuarios/') && req.method === 'DELETE') {
+    if (!sessao.admin) return jRes(res, 403, { erro: 'Acesso negado' });
+    const id = parseInt(pathname.split('/').pop());
+    if (id === sessao.usuario_id) return jRes(res, 400, { erro: 'Não pode remover seu próprio usuário' });
+    db.deletarUsuario(id);
+    return jRes(res, 200, { ok: true });
+  }
+
+  if (pathname === '/auth/senha' && req.method === 'POST') {
+    const body = JSON.parse(await readBody(req) || '{}');
+    if (!body.senha || body.senha.length < 4) return jRes(res, 400, { erro: 'Senha muito curta' });
+    db.alterarSenha(sessao.usuario_id, body.senha);
+    return jRes(res, 200, { ok: true });
   }
 
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {

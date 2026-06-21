@@ -200,8 +200,45 @@
   <div>
     <div class="logo">🛒 Sugestão de Compras <span>Empório Villa Borghese</span></div>
   </div>
-  <div class="regime-badge">LUCRO REAL · SP</div>
+  <div style="display:flex;align-items:center;gap:12px;margin-left:auto">
+    <div class="regime-badge">LUCRO REAL · SP</div>
+    <span id="hdr-usuario" style="font-size:12px;color:var(--muted)"></span>
+    <button onclick="abrirUsuarios()" id="btn-usuarios" style="display:none;background:rgba(124,106,247,.15);border:1px solid var(--accent);color:var(--accent2);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">👥 Usuários</button>
+    <button onclick="logout()" style="background:rgba(239,68,68,.12);border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Sair</button>
+  </div>
 </header>
+
+<!-- Modal Usuários -->
+<div id="modal-usuarios" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#161820;border:1px solid #2d2f3e;border-radius:12px;padding:28px;width:520px;max-width:95vw;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="font-size:15px;color:#a78bfa">👥 Gerenciar Usuários</h3>
+      <button onclick="fecharUsuarios()" style="background:none;border:none;color:#8892a4;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div id="lista-usuarios" style="margin-bottom:20px"></div>
+    <div style="border-top:1px solid #2d2f3e;padding-top:16px">
+      <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:12px">NOVO USUÁRIO</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="nu-nome" placeholder="Nome completo" style="background:#0f1117;border:1px solid #2d2f3e;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px">
+        <input id="nu-usuario" placeholder="Login (sem espaços)" style="background:#0f1117;border:1px solid #2d2f3e;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px">
+        <input id="nu-senha" type="password" placeholder="Senha" style="background:#0f1117;border:1px solid #2d2f3e;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#e2e8f0;cursor:pointer">
+          <input id="nu-admin" type="checkbox"> Admin (pode criar usuários)
+        </label>
+      </div>
+      <button onclick="criarUsuario()" style="background:#7c6af7;border:none;color:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;width:100%">Criar Usuário</button>
+      <div id="nu-erro" style="margin-top:8px;font-size:12px;color:#fca5a5;display:none"></div>
+    </div>
+    <div style="border-top:1px solid #2d2f3e;padding-top:16px;margin-top:16px">
+      <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:12px">ALTERAR MINHA SENHA</div>
+      <div style="display:flex;gap:8px">
+        <input id="ns-senha" type="password" placeholder="Nova senha" style="flex:1;background:#0f1117;border:1px solid #2d2f3e;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px">
+        <button onclick="alterarSenha()" style="background:#22c55e22;border:1px solid #22c55e;color:#22c55e;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer">Salvar</button>
+      </div>
+      <div id="ns-msg" style="margin-top:6px;font-size:12px;display:none"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Overlay de progresso -->
 <div class="progress-overlay" id="prog-overlay">
@@ -1425,11 +1462,88 @@ async function iniciarSync() {
   } finally { btn.disabled = false; }
 }
 
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+async function abrirUsuarios() {
+  document.getElementById('modal-usuarios').style.display = 'flex';
+  await recarregarUsuarios();
+}
+
+function fecharUsuarios() {
+  document.getElementById('modal-usuarios').style.display = 'none';
+}
+
+async function recarregarUsuarios() {
+  const res = await fetch('/auth/usuarios');
+  const lista = await res.json();
+  const el = document.getElementById('lista-usuarios');
+  if (!lista.length) { el.innerHTML = '<div style="color:#8892a4;font-size:13px">Nenhum usuário cadastrado.</div>'; return; }
+  el.innerHTML = lista.map(u => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2d2f3e">
+      <div>
+        <span style="font-size:13px;color:#e2e8f0">${u.nome}</span>
+        <span style="font-size:11px;color:#8892a4;margin-left:8px">@${u.usuario}</span>
+        ${u.admin ? '<span style="font-size:10px;background:#7c6af722;color:#a78bfa;border-radius:4px;padding:1px 6px;margin-left:6px">ADMIN</span>' : ''}
+      </div>
+      <button onclick="removerUsuario(${u.id})" style="background:none;border:1px solid #ef444466;color:#ef4444;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">Remover</button>
+    </div>
+  `).join('');
+}
+
+async function criarUsuario() {
+  const erro = document.getElementById('nu-erro');
+  erro.style.display = 'none';
+  const body = {
+    nome:    document.getElementById('nu-nome').value.trim(),
+    usuario: document.getElementById('nu-usuario').value.trim(),
+    senha:   document.getElementById('nu-senha').value,
+    admin:   document.getElementById('nu-admin').checked ? 1 : 0,
+  };
+  if (!body.nome || !body.usuario || !body.senha) { erro.textContent = 'Preencha todos os campos.'; erro.style.display = 'block'; return; }
+  const res = await fetch('/auth/usuarios', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) { erro.textContent = data.erro; erro.style.display = 'block'; return; }
+  document.getElementById('nu-nome').value = '';
+  document.getElementById('nu-usuario').value = '';
+  document.getElementById('nu-senha').value = '';
+  document.getElementById('nu-admin').checked = false;
+  await recarregarUsuarios();
+}
+
+async function removerUsuario(id) {
+  if (!confirm('Remover este usuário?')) return;
+  await fetch('/auth/usuarios/' + id, { method: 'DELETE' });
+  await recarregarUsuarios();
+}
+
+async function alterarSenha() {
+  const msg = document.getElementById('ns-msg');
+  const senha = document.getElementById('ns-senha').value;
+  if (senha.length < 4) { msg.textContent = 'Senha muito curta.'; msg.style.color = '#fca5a5'; msg.style.display = 'block'; return; }
+  const res = await fetch('/auth/senha', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ senha }) });
+  if (res.ok) { msg.textContent = 'Senha alterada com sucesso!'; msg.style.color = '#22c55e'; }
+  else { msg.textContent = 'Erro ao alterar senha.'; msg.style.color = '#fca5a5'; }
+  msg.style.display = 'block';
+  document.getElementById('ns-senha').value = '';
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
-carregarLojas();
-carregarFornecedores(); // carrega do cache SQLite uma vez — não bloqueia análise
-atualizarStatusBanco();
-// calDados é carregado só ao abrir o tab Fluxo de Caixa (ou antes de renderPedido)
+(async () => {
+  try {
+    const r = await fetch('/auth/me');
+    if (!r.ok) { window.location.href = '/login'; return; }
+    const u = await r.json();
+    document.getElementById('hdr-usuario').textContent = u.nome;
+    if (u.admin) document.getElementById('btn-usuarios').style.display = 'inline-block';
+  } catch(e) { window.location.href = '/login'; return; }
+  carregarLojas();
+  carregarFornecedores();
+  atualizarStatusBanco();
+})();
 </script>
 </body>
 </html>
