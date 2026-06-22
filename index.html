@@ -399,7 +399,7 @@
               <th class="left">Alertas</th>
               <th class="left">Status Compra</th>
               <th>Estoque</th>
-              <th>Venda/dia</th>
+              <th>Vendas</th>
               <th>Custo Hipcom</th>
               <th>Custo Líq.</th>
               <th>Preço Venda</th>
@@ -1533,7 +1533,7 @@ function renderTabela(dados) {
       <td class="left">${alertaBadges(d.alertas)}</td>
       <td class="left">${statusBadge(d.status)}</td>
       <td>${fmtQ(d.estoque_atual)}</td>
-      <td>${d.venda_media_dia!=null ? Math.round(d.venda_media_dia) : '—'}</td>
+      <td>${d.total_vendas_periodo!=null ? Math.round(d.total_vendas_periodo) : '—'}</td>
       <td>R$ ${R(d.fiscal.custo_hipcom)}</td>
       <td>R$ ${R(ca.custo_real)}</td>
       <td>R$ ${R(d.fiscal.preco_venda)}</td>
@@ -1592,7 +1592,7 @@ function exportCSV() {
       `"${alertaTxt.replace(/"/g,'""')}"`,
       `"${d.status}"`,
       d.estoque_atual,
-      d.venda_media_dia!=null ? Math.round(d.venda_media_dia) : '',
+      d.total_vendas_periodo!=null ? Math.round(d.total_vendas_periodo) : '',
       d.fiscal.custo_hipcom,
       ca.custo_real,
       d.fiscal.preco_venda,
