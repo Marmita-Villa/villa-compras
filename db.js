@@ -65,6 +65,9 @@ db.exec(`
   );
 `);
 
+// Migrations — adiciona colunas que podem não existir em bancos antigos
+try { db.prepare('ALTER TABLE prod_emb ADD COLUMN custo_unit REAL NOT NULL DEFAULT 0').run(); } catch (_) {}
+
 // TTLs em segundos
 const TTL = {
   lojas:        86400,     // 24h — lojas raramente mudam
