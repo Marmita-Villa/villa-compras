@@ -252,9 +252,10 @@ async function rodarSync(jid, lojaId, diasHist) {
     }
     if (!faltandoC.length) jAtualiza(jid, 80, 'Compras: todas as datas já no banco ✓');
 
-    // Estoques: início e hoje
+    // Estoques: início e ontem (Hipcom não disponibiliza estoque do dia corrente até o fechamento)
+    const dataEstFim = daysAgo(1);
     jAtualiza(jid, 88, 'Sincronizando estoques...');
-    await Promise.all([loadEstoque(lojaId, dataInicio), loadEstoque(lojaId, dataFim)]);
+    await Promise.all([loadEstoque(lojaId, dataInicio), loadEstoque(lojaId, dataEstFim)]);
 
     jAtualiza(jid, 100, `Sincronização concluída — ${diasHist} dias`);
     j.resultado = db.getStats();
