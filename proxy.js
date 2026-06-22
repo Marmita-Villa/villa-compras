@@ -319,9 +319,12 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
     jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
-    // Mapa plu → qtd_embalagem para corrigir valor_total das compras (API retorna qtd_unid × custo_embalagem)
+    // Mapa plu → qtd_embalagem (todas as lojas, pois produtos exclusivos de cada loja não estariam no lojaRef)
     const embMap = {};
-    todosProd.forEach(p => { embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; });
+    for (const lid of lojaIds) {
+      (db.getProdutos(lid) || []).forEach(p => { if (!embMap[p.plu]) embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; });
+    }
+    todosProd.forEach(p => { embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; }); // lojaRef tem prioridade
 
     // Análise lê APENAS do banco local — nunca chama a Hipcom
     // Para atualizar os dados use "Sincronizar Banco"
