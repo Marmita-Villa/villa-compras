@@ -150,31 +150,26 @@ const stmtGetEst        = db.prepare('SELECT json, synced_at FROM estoques WHERE
 const stmtGetEstRecente = db.prepare("SELECT json, synced_at, data FROM estoques WHERE loja=? AND data<=? AND json!='[]' ORDER BY data DESC LIMIT 1");
 const stmtSetEst        = db.prepare('INSERT OR REPLACE INTO estoques(loja,data,json,synced_at) VALUES(?,?,?,?)');
 
+// Usado pelo loadEstoque para decidir se precisa buscar do Hipcom (data exata apenas)
+function getEstoqueExato(loja, data) {
+  const r = stmtGetEst.get(loja, data);
+  if (!r) return null;
+  const ttl = data === hoje() ? TTL.hoje : TTL.passado;
+  if (isStale(r.synced_at, ttl)) return null;
+  const arr = JSON.parse(r.json);
+  return arr.length > 0 ? arr : null; // null se vazio (força nova busca)
+}
+// Usado pela análise — usa fallback para data mais recente com dados
 function getEstoque(loja, data) {
-  // Tenta data exata primeiro
-  let r = stmtGetEst.get(loja, data);
-  if (r) {
-    const ttl = data === hoje() ? TTL.hoje : TTL.passado;
-    if (!isStale(r.synced_at, ttl)) {
-      const arr = JSON.parse(r.json);
-      if (arr.length > 0) return arr; // só usa se não for vazio
-    }
-  }
-  // Fallback: snapshot mais recente disponível (sem limite de dias)
+  const exato = getEstoqueExato(loja, data);
+  if (exato) return exato;
+  // Fallback: snapshot mais recente não-vazio (sem limite de dias)
   const r2 = stmtGetEstRecente.get(loja, data);
   if (!r2) return null;
   return JSON.parse(r2.json);
 }
 function setEstoque(loja, data, items) {
-  // Não sobrescreve snapshot válido com resposta vazia
-  if (!items || items.length === 0) {
-    const existing = stmtGetEst.get(loja, data);
-    if (existing) {
-      const arr = JSON.parse(existing.json);
-      if (arr.length > 0) return; // mantém o dado existente
-    }
-    return; // não salva vazio
-  }
+  if (!items || items.length === 0) return; // nunca salva vazio
   stmtSetEst.run(loja, data, JSON.stringify(items), now());
 }
 

@@ -165,7 +165,7 @@ async function loadVendasDia(loja, data) {
   return d;
 }
 async function loadEstoque(loja, data) {
-  let d = db.getEstoque(loja, data);
+  let d = db.getEstoqueExato(loja, data);
   if (d === null) { d = await hGetAll(`/api/hipcom/estoquesprodutos?loja=${loja}&data=${data}`); db.setEstoque(loja, data, d); }
   return d;
 }
