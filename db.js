@@ -155,16 +155,26 @@ function getEstoque(loja, data) {
   let r = stmtGetEst.get(loja, data);
   if (r) {
     const ttl = data === hoje() ? TTL.hoje : TTL.passado;
-    if (!isStale(r.synced_at, ttl)) return JSON.parse(r.json);
+    if (!isStale(r.synced_at, ttl)) {
+      const arr = JSON.parse(r.json);
+      if (arr.length > 0) return arr; // só usa se não for vazio
+    }
   }
-  // Fallback: data mais recente disponível (até 7 dias atrás)
+  // Fallback: snapshot mais recente disponível (sem limite de dias)
   const r2 = stmtGetEstRecente.get(loja, data);
   if (!r2) return null;
-  const diasAtraso = Math.floor((new Date(data) - new Date(r2.data)) / 86400000);
-  if (diasAtraso > 7) return null; // dado muito antigo, não usar
   return JSON.parse(r2.json);
 }
 function setEstoque(loja, data, items) {
+  // Não sobrescreve snapshot válido com resposta vazia
+  if (!items || items.length === 0) {
+    const existing = stmtGetEst.get(loja, data);
+    if (existing) {
+      const arr = JSON.parse(existing.json);
+      if (arr.length > 0) return; // mantém o dado existente
+    }
+    return; // não salva vazio
+  }
   stmtSetEst.run(loja, data, JSON.stringify(items), now());
 }
 
