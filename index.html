@@ -1355,21 +1355,17 @@ async function renderPedido() {
   const dtVencStr   = dtVenc.toISOString().slice(0,10);
   const dtVencFmt   = formatarDataLocal(dtVencStr);
 
-  // Semana do vencimento (seg–dom)
-  const dow         = dtVenc.getDay(); // 0=dom
-  const dtSegStr    = (() => { const d = new Date(dtVenc); d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); return d.toISOString().slice(0,10); })();
-  const dtDomStr    = (() => { const d = new Date(dtVenc); d.setDate(d.getDate() + (dow === 0 ? 0 : 7 - dow)); return d.toISOString().slice(0,10); })();
-
-  let cargaSemana = 0;
+  // Carga do dia exato de vencimento
+  let cargaDia = 0;
   if (calDados && calDados.lancamentos) {
-    calDados.lancamentos.filter(l => l.data >= dtSegStr && l.data <= dtDomStr)
-      .forEach(l => { cargaSemana += (l.valor_l || 0) + (l.valor_p || 0); });
+    calDados.lancamentos.filter(l => l.data === dtVencStr)
+      .forEach(l => { cargaDia += (l.valor_l || 0) + (l.valor_p || 0); });
   }
-  const totalSemComPedido = cargaSemana + valorTotal;
-  const nivelSemana = totalSemComPedido < 100000 ? 'ok' : totalSemComPedido < 300000 ? 'warn' : 'danger';
-  const nivelTxt    = nivelSemana === 'ok' ? '✅ Semana tranquila' : nivelSemana === 'warn' ? '⚠️ Semana moderada' : '🔴 Semana sobrecarregada';
+  const totalDiaComPedido = cargaDia + valorTotal;
+  const nivelSemana = totalDiaComPedido < 50000 ? 'ok' : totalDiaComPedido < 150000 ? 'warn' : 'danger';
+  const nivelTxt    = nivelSemana === 'ok' ? '✅ Dia tranquilo' : nivelSemana === 'warn' ? '⚠️ Dia com carga moderada' : '🔴 Dia sobrecarregado';
   const semCalStr   = calDados && calDados.lancamentos && calDados.lancamentos.length
-    ? `Carga atual semana: R$ ${R(cargaSemana)} + pedido R$ ${R(valorTotal)} = <strong>R$ ${R(totalSemComPedido)}</strong>`
+    ? `Já previsto para esse dia: R$ ${R(cargaDia)} + pedido R$ ${R(valorTotal)} = <strong>R$ ${R(totalDiaComPedido)}</strong>`
     : `<span style="color:var(--muted)">Sem dados do calendário — importe o TXT do Hipcom na aba Fluxo de Caixa</span>`;
 
   const grid = document.getElementById('pedido-grid');
@@ -1405,7 +1401,6 @@ async function renderPedido() {
       <h4>📅 Projeção de Pagamento</h4>
       <div class="pedido-row"><span class="lbl">Prazo do fornecedor</span><span class="val">${prazo} dias</span></div>
       <div class="pedido-row"><span class="lbl">Vencimento estimado</span><span class="val c-purple">${dtVencFmt}</span></div>
-      <div class="pedido-row"><span class="lbl">Semana</span><span class="val" style="font-size:11px">${formatarDataLocal(dtSegStr)} a ${formatarDataLocal(dtDomStr)}</span></div>
       <div class="pagto-semana ${nivelSemana}">
         <strong>${nivelTxt}</strong><br>
         <span style="font-size:11px">${semCalStr}</span>
