@@ -401,7 +401,7 @@
               <th>Estoque</th>
               <th>Venda/dia</th>
               <th>Custo Hipcom</th>
-              <th>Custo Real</th>
+              <th>Custo Líq.</th>
               <th>Preço Venda</th>
               <th>Margem %</th>
               <th>Mín 30%</th>
@@ -598,7 +598,7 @@
         style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--fg);font-size:13px">
         <option value="TODOS">Todos os status</option>
         <option value="PREJUIZO_TOTAL">🔴 Abaixo custo / Prejuízo</option>
-        <option value="ABAIXO_CUSTO_REAL">🔴 Abaixo custo real</option>
+        <option value="ABAIXO_CUSTO_REAL">🔴 Abaixo custo líq.</option>
         <option value="ABAIXO_CUSTO_HIPCOM">🔴 Abaixo custo Hipcom</option>
         <option value="PREJUIZO">🔴 Margem negativa</option>
         <option value="MARGEM_CRITICA">🟠 Margem crítica &lt;15%</option>
@@ -631,7 +631,7 @@
             <th style="cursor:pointer" onclick="sortMargem('comprador')">COMPRADOR ↕</th>
             <th style="cursor:pointer" onclick="sortMargem('curva_abc')">CURVA ↕</th>
             <th style="text-align:right;cursor:pointer" onclick="sortMargem('custo_hipcom')">C.HIPCOM ↕</th>
-            <th style="text-align:right;cursor:pointer" onclick="sortMargem('custo_real')">C.REAL ↕</th>
+            <th style="text-align:right;cursor:pointer" onclick="sortMargem('custo_real')">C.LÍQ. ↕</th>
             <th style="text-align:right;cursor:pointer" onclick="sortMargem('preco')">P.VENDA ↕</th>
             <th style="text-align:right;cursor:pointer" onclick="sortMargem('margem_bruta')">M.BRUTA% ↕</th>
             <th style="text-align:right;cursor:pointer" onclick="sortMargem('margem_liquida')">M.LÍQUIDA% ↕</th>
@@ -857,7 +857,7 @@ function renderDetalhe(d, idx) {
       <div class="detail-row"><span class="k">(–) Créd. PIS entrada</span><span class="v" style="color:var(--ok)">–R$ ${R(ca.cred_pis)}</span></div>
       <div class="detail-row"><span class="k">(–) Créd. COFINS entrada</span><span class="v" style="color:var(--ok)">–R$ ${R(ca.cred_cofins)}</span></div>
       <div class="detail-sep"></div>
-      <div class="detail-row"><span class="k"><strong>= Custo Real</strong></span><span class="v"><strong>R$ ${R(ca.custo_real)}</strong></span></div>
+      <div class="detail-row"><span class="k"><strong>= Custo Líq.</strong></span><span class="v"><strong>R$ ${R(ca.custo_real)}</strong></span></div>
       <div class="detail-sep"></div>
       <div class="detail-row"><span class="k">Preço de venda</span><span class="v">R$ ${R(f.preco_venda)}</span></div>
       <div class="detail-row"><span class="k">(–) Déb. ICMS saída</span><span class="v" style="color:var(--danger)">–R$ ${R(ca.deb_icms)}</span></div>
@@ -952,7 +952,7 @@ function renderDetalhe(d, idx) {
         ${ref.cesta_basica?'<span class="badge b-ok" style="margin-left:4px">Cesta Básica — alíquota zero 2027+</span>':''}
       </div>
       <table class="reforma-table">
-        <thead><tr><th>Ano</th><th>Descrição</th><th>Custo Real</th><th>Imp. Saída</th><th>Margem %</th></tr></thead>
+        <thead><tr><th>Ano</th><th>Descrição</th><th>Custo Líq.</th><th>Imp. Saída</th><th>Margem %</th></tr></thead>
         <tbody>
           ${anosRef.map(([ano,c])=>`
           <tr style="${ano==='2025'?'font-weight:600':''} ${c.margem!=null&&c.margem<30?'color:var(--warn)':''}">
@@ -1578,7 +1578,7 @@ function filtrar() {
 
 // ── CSV ─────────────────────────────────────────────────────────────────────
 function exportCSV() {
-  const cols = ['Produto','NCM','Regime PIS/COFINS','ST Ativa','ST Removida','Alerta Fiscal','Status','Estoque','Venda/dia','Custo Hipcom','Custo Real','Preço Venda','Margem %','Preço Mín 30%','Qtd Sugerida','Valor Pedido'];
+  const cols = ['Produto','NCM','Regime PIS/COFINS','ST Ativa','ST Removida','Alerta Fiscal','Status','Estoque','Venda/dia','Custo Hipcom','Custo Líq.','Preço Venda','Margem %','Preço Mín 30%','Qtd Sugerida','Valor Pedido'];
   const linhas = DADOS.map(d=>{
     const ca = d.fiscal.cenario_atual;
     const ni = d.fiscal.ncm_info;
