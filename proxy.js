@@ -337,18 +337,29 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         datasComDados[lid] = { faltaVendas: faltandoV.length, faltaCompras: faltandoC.length };
       }
 
+      // 1ª passagem: menor custo por PLU = custo da unidade individual
+      const minCustoPlu = {};
+      for (const dt of datas) {
+        (db.getVendas(lid, dt) || []).forEach(item => {
+          const c = parseFloat(item.custo || 0);
+          if (c > 0) minCustoPlu[item.plu] = Math.min(minCustoPlu[item.plu] ?? Infinity, c);
+        });
+      }
+
+      // 2ª passagem: qty_real = custo_scan / custo_unitário_min → converte embalagem → unidades
       vendasPorLoja[lid] = {};
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
-          const p = item.plu, qtd = parseFloat(item.quantidade_total || 0);
-          // qtd_embalagem converte "scans de caixa" para unidades individuais
-          // (ex: 1 scan de caixa de 4 tubos → 4 unidades individuais)
-          const emb = embMap[p] || 1;
-          const qtdUnid = qtd * emb;
+          const p   = item.plu;
+          const qtd = parseFloat(item.quantidade_total || 0);
+          const c   = parseFloat(item.custo || 0);
+          const minC = minCustoPlu[p] || c || 1;
+          const emb  = c > 0 ? Math.round(c / minC) : 1;
+          const qtdUnid = qtd * Math.max(1, emb);
           if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0, custoTotal: 0 };
           vendasPorLoja[lid][p].total      += qtdUnid;
           vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0);
-          vendasPorLoja[lid][p].custoTotal += parseFloat(item.custo || 0) * qtdUnid;
+          vendasPorLoja[lid][p].custoTotal += minC * qtdUnid;
           if (qtd > 0) vendasPorLoja[lid][p].dias++;
         });
       }
