@@ -231,6 +231,9 @@ async function rodarSync(jid, lojaId, diasHist) {
     db.setFornecedores(forn);
     db.setFP(lojaId, fp);
     db.setLojas(lojasArr);
+    // Salva qtd_embalagem de TODOS os produtos (sem filtro rentabilidade) para análise de unidades
+    const todosProds = await hGetAll(`/api/hipcom/produtos?loja=${lojaId}`);
+    db.setEmbalagemMap(todosProds);
 
     // Vendas
     const faltandoV = db.datasFaltandoVendas(lojaId, datas);
@@ -319,12 +322,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
     jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
-    // Mapa plu → qtd_embalagem (todas as lojas, pois produtos exclusivos de cada loja não estariam no lojaRef)
-    const embMap = {};
-    for (const lid of lojaIds) {
-      (db.getProdutos(lid) || []).forEach(p => { if (!embMap[p.plu]) embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; });
-    }
-    todosProd.forEach(p => { embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; }); // lojaRef tem prioridade
+    // Mapa plu → qtd_embalagem (todos os produtos, incluindo entra_rentabilidade=N)
+    const embMap = db.getEmbalagemMap();
+    // Complementa com produtos de rentabilidade=S (mais atualizados)
+    todosProd.forEach(p => { embMap[String(p.plu)] = parseFloat(p.qtd_embalagem || 1) || 1; });
 
     // Análise lê APENAS do banco local — nunca chama a Hipcom
     // Para atualizar os dados use "Sincronizar Banco"

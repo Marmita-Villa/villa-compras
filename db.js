@@ -51,6 +51,10 @@ db.exec(`
     synced_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
     PRIMARY KEY (loja, data)
   );
+  CREATE TABLE IF NOT EXISTS prod_emb (
+    plu            TEXT NOT NULL PRIMARY KEY,
+    qtd_embalagem  REAL NOT NULL DEFAULT 1
+  );
   CREATE TABLE IF NOT EXISTS fiscal (
     loja       INTEGER NOT NULL,
     plu        TEXT    NOT NULL,
@@ -197,6 +201,17 @@ function datasFaltandoCompras(loja, datas) {
 const stmtGetFis    = db.prepare('SELECT json, updated_at FROM fiscal WHERE loja=? AND plu=?');
 const stmtGetFisAny = db.prepare('SELECT json, updated_at FROM fiscal WHERE plu=? AND json IS NOT NULL ORDER BY updated_at DESC LIMIT 1');
 const stmtSetFis    = db.prepare('INSERT OR REPLACE INTO fiscal(loja,plu,json,updated_at) VALUES(?,?,?,?)');
+
+const stmtSetEmb = db.prepare('INSERT OR REPLACE INTO prod_emb(plu, qtd_embalagem) VALUES(?,?)');
+const stmtGetEmb = db.prepare('SELECT qtd_embalagem FROM prod_emb WHERE plu=?');
+function setEmbalagemMap(prods) {
+  const ins = db.transaction(list => { list.forEach(p => stmtSetEmb.run(String(p.plu), parseFloat(p.qtd_embalagem || 1) || 1)); });
+  ins(prods);
+}
+function getEmbalagemMap() {
+  return db.prepare('SELECT plu, qtd_embalagem FROM prod_emb').all()
+    .reduce((m, r) => { m[r.plu] = r.qtd_embalagem; return m; }, {});
+}
 
 function getFiscal(loja, plu) {
   // tenta a loja exata primeiro
@@ -395,6 +410,7 @@ module.exports = {
   getEstoque, getEstoqueExato, setEstoque,
   getCompras, setCompras, datasFaltandoCompras,
   getFiscal, setFiscal, plusSemFiscal,
+  setEmbalagemMap, getEmbalagemMap,
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
   salvarPedido, listarPedidos, verPedido, deletarPedido,
