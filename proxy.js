@@ -274,7 +274,14 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
     const lojaIds  = Array.isArray(lojas) ? lojas : [parseInt(lojas)];
     const lojaRef  = lojaIds[0];
     // Lojas de venda = todas exceto o CD
-    const lojaVenda = lojaIds.filter(l => l !== LOJA_CD);
+    // Se só o CD foi selecionado, busca vendas em todas as lojas cadastradas
+    let lojaVenda = lojaIds.filter(l => l !== LOJA_CD);
+    if (lojaVenda.length === 0) {
+      const todasLojas = await loadLojas();
+      lojaVenda = todasLojas.map(l => l.loja).filter(l => l !== LOJA_CD);
+      // garante que essas lojas também entram no lojaIds para leitura de vendas
+      for (const lv of lojaVenda) { if (!lojaIds.includes(lv)) lojaIds.push(lv); }
+    }
 
     jAtualiza(jid, 2, 'Carregando produtos...');
     const todosProd = await loadProdutos(lojaRef);
