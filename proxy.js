@@ -515,7 +515,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         receita_prevista: +recPrevista.toFixed(2), lucro_previsto: +lucroPrev.toFixed(2),
         receita_periodo: +receitaReal.toFixed(2),
         custo_medio_ponderado: custoMedioPonderado ? +custoMedioPonderado.toFixed(4) : null,
-        total_compras_valor: cmpAgg.valor > 0 ? +cmpAgg.valor.toFixed(2) : null,
+        total_compras_valor: null,
         fiscal_cmv: caCmv,
         recomenda_compra: recomendaCompra, status, alertas,
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
