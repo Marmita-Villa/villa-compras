@@ -319,6 +319,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
     jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
+    // Mapa plu → qtd_embalagem para corrigir valor_total das compras (API retorna qtd_unid × custo_embalagem)
+    const embMap = {};
+    todosProd.forEach(p => { embMap[p.plu] = parseFloat(p.qtd_embalagem || 1) || 1; });
+
     // Análise lê APENAS do banco local — nunca chama a Hipcom
     // Para atualizar os dados use "Sincronizar Banco"
     const datasComDados = {};
@@ -355,7 +359,8 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
           comprasPorLoja[lid][c.plu] += parseFloat(c.quantidade_total || 0);
           if (!comprasValorPorLoja[lid][c.plu]) comprasValorPorLoja[lid][c.plu] = { qtd: 0, valor: 0 };
           comprasValorPorLoja[lid][c.plu].qtd   += parseFloat(c.quantidade_total || 0);
-          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0);
+          // valor_total da API = qtd_unidades × custo_embalagem → divide por qtd_embalagem para obter custo unitário real
+          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0) / (embMap[c.plu] || 1);
         });
       }
     }
