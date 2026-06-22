@@ -2002,6 +2002,11 @@ function pedidoCarregarAnalise() {
     margem_atual: d.fiscal?.cenario_atual?.margem_liquida ?? null,
     fiscal:       d.fiscal,
     status:       d.status,
+    st_removida:  d.fiscal?.ncm_info?.st_removida ?? false,
+    alq_icms:     d.fiscal?.cenario_atual?.alq_icms_entrada ?? 12,
+    custo_justo_sem_st: d.fiscal?.ncm_info?.st_removida
+      ? +((d.fiscal?.custo_hipcom || 0) / (1 + (d.fiscal?.cenario_atual?.alq_icms_entrada || 12) / 100)).toFixed(4)
+      : null,
   }));
 
   pedidoRenderTabela();
@@ -2060,7 +2065,36 @@ function pedidoRenderTabela() {
 
 function pedidoUpdateItem(i, campo, val) {
   _pedItens[i][campo] = val;
+  if (campo === 'custo_negoc') verificarAlertaSTItem(_pedItens[i]);
   pedidoRenderTabela();
+}
+
+function verificarAlertaSTItem(it) {
+  if (!it.st_removida || it.custo_justo_sem_st == null) return;
+  if (it.custo_negoc <= it.custo_justo_sem_st * 1.005) return; // tolerância 0.5%
+  const alq    = it.alq_icms || 12;
+  const justo  = it.custo_justo_sem_st;
+  const cobrado = it.custo_negoc;
+  const diff   = cobrado - justo;
+  const diffPct = (diff / justo * 100).toFixed(1);
+  const qtd    = it.qtd_pedido || 0;
+  const impacto = (diff * qtd).toFixed(2);
+  const brl = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+
+  document.getElementById('popup-st-nome').textContent    = it.nome;
+  document.getElementById('popup-st-cobrado').textContent = brl(cobrado);
+  document.getElementById('popup-st-justo').textContent   = brl(justo);
+  document.getElementById('popup-st-alq').textContent     = alq + '%';
+  document.getElementById('popup-st-diff').textContent    = brl(diff) + ' (' + diffPct + '% a mais)';
+  document.getElementById('popup-st-qtd').textContent     = qtd + ' un';
+  document.getElementById('popup-st-impacto').textContent = brl(impacto);
+  document.getElementById('popup-st-argumento').textContent =
+    `"${it.nome.split(' ').slice(0,4).join(' ')} saiu da ST em SP. O custo justo é ${brl(justo)}. Vocês estão cobrando ${brl(cobrado)} — ${brl(diff)}/un a mais que o esperado. No pedido de ${qtd} unidades, o impacto é de ${brl(impacto)}."`;
+  document.getElementById('popup-st-overlay').style.display = 'flex';
+}
+
+function fecharPopupST() {
+  document.getElementById('popup-st-overlay').style.display = 'none';
 }
 
 function pedidoRemoverItem(i) {
@@ -2753,5 +2787,64 @@ async function alterarSenha() {
   atualizarStatusBanco();
 })();
 </script>
+
+<!-- ── Popup alerta ST removida no pedido ── -->
+<div id="popup-st-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#1a1f35;border:1px solid #ef4444;border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.7)">
+
+    <!-- Cabeçalho -->
+    <div style="background:rgba(239,68,68,.15);border-bottom:1px solid #ef444433;border-radius:14px 14px 0 0;padding:16px 20px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⚠️</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#f87171;text-transform:uppercase;letter-spacing:.05em">ST Removida — Custo acima do esperado</div>
+        <div id="popup-st-nome" style="font-size:11px;color:#94a3b8;margin-top:2px"></div>
+      </div>
+      <button onclick="fecharPopupST()" style="margin-left:auto;background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+
+    <!-- Corpo -->
+    <div style="padding:18px 20px">
+
+      <!-- Comparativo de custo -->
+      <div style="background:#0f1117;border:1px solid #2d3148;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚠ Se o fornecedor não repassou o desconto</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1e2540">
+          <span style="font-size:12px;color:#94a3b8">Custo digitado</span>
+          <span id="popup-st-cobrado" style="font-size:13px;font-weight:700;color:#f87171"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1e2540">
+          <span style="font-size:12px;color:#94a3b8">Custo justo sem ST (<span id="popup-st-alq"></span>)</span>
+          <span id="popup-st-justo" style="font-size:13px;font-weight:700;color:#4ade80"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 2px">
+          <span style="font-size:12px;font-weight:700;color:#e2e8f0">ST retida por unidade</span>
+          <span id="popup-st-diff" style="font-size:13px;font-weight:800;color:#f87171"></span>
+        </div>
+      </div>
+
+      <!-- Impacto no pedido -->
+      <div style="background:#0f1117;border:1px solid #2d3148;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:.05em">Impacto total no pedido</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px">Qtd: <span id="popup-st-qtd"></span></div>
+        </div>
+        <div id="popup-st-impacto" style="font-size:22px;font-weight:800;color:#f87171"></div>
+      </div>
+
+      <!-- Argumento de negociação -->
+      <div style="background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.25);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">💬 Argumento para negociação</div>
+        <div id="popup-st-argumento" style="font-size:12px;color:#e2e8f0;line-height:1.6;font-style:italic"></div>
+      </div>
+
+      <!-- Botões -->
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="fecharPopupST()" style="background:#1e2540;border:1px solid #2d3148;border-radius:6px;padding:8px 18px;color:#94a3b8;font-size:13px;cursor:pointer">Entendi, manter custo</button>
+        <button onclick="fecharPopupST()" style="background:#ef4444;border:none;border-radius:6px;padding:8px 18px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">Vou renegociar o custo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
