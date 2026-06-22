@@ -392,9 +392,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       const qtdEmb = parseFloat(prod.qtd_embalagem || 1) || 1;
       const porLoja = lojaIds.map(lid => {
         const v      = vendasPorLoja[lid][plu]  || { total: 0, dias: 0, valorTotal: 0 };
-        // fallback qtd_estoque_atual só vale para a loja de referência (onde os produtos foram buscados)
-        const estFallback = lid === lojaRef ? parseFloat(prod.qtd_estoque_atual || 0) : 0;
-        const estFim = estFimPorLoja[lid][plu]  ?? estFallback;
+        // Para lojaRef, qtd_estoque_atual é em tempo real — tem precedência sobre snapshot de ontem
+        const estAtualRef = lid === lojaRef ? parseFloat(prod.qtd_estoque_atual || 0) : null;
+        const estSnap     = estFimPorLoja[lid][plu] ?? (lid === lojaRef ? 0 : 0);
+        const estFim      = estAtualRef !== null ? estAtualRef : estSnap;
         const estIni = estIniPorLoja[lid][plu]  ?? estFim;
         const cmp    = comprasPorLoja[lid][plu] || 0;
         const vmd    = diasAnalise > 0 ? v.total / diasAnalise : 0;
