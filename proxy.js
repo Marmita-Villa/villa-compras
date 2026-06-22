@@ -428,13 +428,14 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       const estInicio = porLoja.reduce((s, l) => s + l.estoque_ini, 0);
       const totalCmp  = porLoja.reduce((s, l) => s + l.compras,    0);
 
-      // Custo médio ponderado do período (todas as lojas, valor real das NFs de entrada)
+      // Custo médio ponderado: usa prod.custo (campo real do Hipcom) como base
+      // valor_total das compras é inconsistente (embalagem vs unidade) — prod.custo é confiável
       const cmpAgg = lojaIds.reduce((s, lid) => {
         const c = comprasValorPorLoja[lid]?.[plu];
-        if (c) { s.qtd += c.qtd; s.valor += c.valor; }
+        if (c) { s.qtd += c.qtd; }
         return s;
-      }, { qtd: 0, valor: 0 });
-      const custoMedioPonderado = cmpAgg.qtd > 0 ? cmpAgg.valor / cmpAgg.qtd : null;
+      }, { qtd: 0 });
+      const custoMedioPonderado = custo > 0 ? custo : null;
 
       const vendaMediaDia = diasAnalise > 0 ? vTotal / diasAnalise : 0;
       const quebraEst     = Math.max(0, estInicio + totalCmp - vTotal - estAtual);
