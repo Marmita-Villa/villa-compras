@@ -339,7 +339,8 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
           const p = item.plu, qtd = parseFloat(item.quantidade_total || 0);
           if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0 };
           vendasPorLoja[lid][p].total      += qtd;
-          vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0);
+          // valor_total da API = qtd_unidades × preco_embalagem → divide por qtd_embalagem para obter receita unitária real
+          vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0) / (embMap[p] || 1);
           if (qtd > 0) vendasPorLoja[lid][p].dias++;
         });
       }
