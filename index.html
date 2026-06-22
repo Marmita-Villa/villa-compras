@@ -399,7 +399,7 @@
               <th class="left">Alertas</th>
               <th class="left">Status Compra</th>
               <th>Estoque</th>
-              <th>Venda/dia</th>
+              <th>Venda/sem</th>
               <th>Custo Hipcom</th>
               <th>Custo Líq.</th>
               <th>Preço Venda</th>
@@ -1533,7 +1533,7 @@ function renderTabela(dados) {
       <td class="left">${alertaBadges(d.alertas)}</td>
       <td class="left">${statusBadge(d.status)}</td>
       <td>${fmtQ(d.estoque_atual)}</td>
-      <td>${fmtQ(d.venda_media_dia)}</td>
+      <td>${d.venda_media_dia!=null ? Number(d.venda_media_dia*7).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '—'}</td>
       <td>R$ ${R(d.fiscal.custo_hipcom)}</td>
       <td>R$ ${R(ca.custo_real)}</td>
       <td>R$ ${R(d.fiscal.preco_venda)}</td>
@@ -1578,7 +1578,7 @@ function filtrar() {
 
 // ── CSV ─────────────────────────────────────────────────────────────────────
 function exportCSV() {
-  const cols = ['Produto','NCM','Regime PIS/COFINS','ST Ativa','ST Removida','Alerta Fiscal','Status','Estoque','Venda/dia','Custo Hipcom','Custo Líq.','Preço Venda','Margem %','Preço Mín 30%','Qtd Sugerida','Valor Pedido'];
+  const cols = ['Produto','NCM','Regime PIS/COFINS','ST Ativa','ST Removida','Alerta Fiscal','Status','Estoque','Venda/sem','Custo Hipcom','Custo Líq.','Preço Venda','Margem %','Preço Mín 30%','Qtd Sugerida','Valor Pedido'];
   const linhas = DADOS.map(d=>{
     const ca = d.fiscal.cenario_atual;
     const ni = d.fiscal.ncm_info;
@@ -1592,7 +1592,7 @@ function exportCSV() {
       `"${alertaTxt.replace(/"/g,'""')}"`,
       `"${d.status}"`,
       d.estoque_atual,
-      d.venda_media_dia,
+      d.venda_media_dia!=null ? +(d.venda_media_dia*7).toFixed(1) : '',
       d.fiscal.custo_hipcom,
       ca.custo_real,
       d.fiscal.preco_venda,
