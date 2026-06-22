@@ -322,10 +322,9 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
     jAtualiza(jid, 36, `Lendo dados do banco local para ${lojaIds.length} loja(s)...`);
 
-    // Mapa plu → qtd_embalagem (todos os produtos, incluindo entra_rentabilidade=N)
-    const embMap = db.getEmbalagemMap();
-    // Complementa com produtos de rentabilidade=S (mais atualizados)
-    todosProd.forEach(p => { embMap[String(p.plu)] = parseFloat(p.qtd_embalagem || 1) || 1; });
+    // custoMap: custo unitário real de cada PLU (do cadastro de produtos, sem filtro rentabilidade)
+    const custoMap = db.getCustoMap();
+    todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
 
     // Análise lê APENAS do banco local — nunca chama a Hipcom
     // Para atualizar os dados use "Sincronizar Banco"
@@ -337,29 +336,20 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         datasComDados[lid] = { faltaVendas: faltandoV.length, faltaCompras: faltandoC.length };
       }
 
-      // 1ª passagem: menor custo por PLU = custo da unidade individual
-      const minCustoPlu = {};
-      for (const dt of datas) {
-        (db.getVendas(lid, dt) || []).forEach(item => {
-          const c = parseFloat(item.custo || 0);
-          if (c > 0) minCustoPlu[item.plu] = Math.min(minCustoPlu[item.plu] ?? Infinity, c);
-        });
-      }
-
-      // 2ª passagem: qty_real = custo_scan / custo_unitário_min → converte embalagem → unidades
       vendasPorLoja[lid] = {};
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
-          const p   = item.plu;
-          const qtd = parseFloat(item.quantidade_total || 0);
-          const c   = parseFloat(item.custo || 0);
-          const minC = minCustoPlu[p] || c || 1;
-          const emb  = c > 0 ? Math.round(c / minC) : 1;
+          const p    = item.plu;
+          const qtd  = parseFloat(item.quantidade_total || 0);
+          const cScan = parseFloat(item.custo || 0);
+          // custo unitário do cadastro → fator de embalagem = custo_scan / custo_unit
+          const cUnit = custoMap[String(p)] || cScan;
+          const emb   = cScan > 0 && cUnit > 0 && cScan > cUnit ? Math.round(cScan / cUnit) : 1;
           const qtdUnid = qtd * Math.max(1, emb);
           if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0, custoTotal: 0 };
           vendasPorLoja[lid][p].total      += qtdUnid;
           vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0);
-          vendasPorLoja[lid][p].custoTotal += minC * qtdUnid;
+          vendasPorLoja[lid][p].custoTotal += (cUnit || cScan) * qtdUnid;
           if (qtd > 0) vendasPorLoja[lid][p].dias++;
         });
       }

@@ -53,7 +53,8 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS prod_emb (
     plu            TEXT NOT NULL PRIMARY KEY,
-    qtd_embalagem  REAL NOT NULL DEFAULT 1
+    qtd_embalagem  REAL NOT NULL DEFAULT 1,
+    custo_unit     REAL NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS fiscal (
     loja       INTEGER NOT NULL,
@@ -202,15 +203,16 @@ const stmtGetFis    = db.prepare('SELECT json, updated_at FROM fiscal WHERE loja
 const stmtGetFisAny = db.prepare('SELECT json, updated_at FROM fiscal WHERE plu=? AND json IS NOT NULL ORDER BY updated_at DESC LIMIT 1');
 const stmtSetFis    = db.prepare('INSERT OR REPLACE INTO fiscal(loja,plu,json,updated_at) VALUES(?,?,?,?)');
 
-const stmtSetEmb = db.prepare('INSERT OR REPLACE INTO prod_emb(plu, qtd_embalagem) VALUES(?,?)');
-const stmtGetEmb = db.prepare('SELECT qtd_embalagem FROM prod_emb WHERE plu=?');
+const stmtSetEmb = db.prepare('INSERT OR REPLACE INTO prod_emb(plu, qtd_embalagem, custo_unit) VALUES(?,?,?)');
 function setEmbalagemMap(prods) {
-  const ins = db.transaction(list => { list.forEach(p => stmtSetEmb.run(String(p.plu), parseFloat(p.qtd_embalagem || 1) || 1)); });
+  const ins = db.transaction(list => {
+    list.forEach(p => stmtSetEmb.run(String(p.plu), parseFloat(p.qtd_embalagem || 1) || 1, parseFloat(p.custo || 0)));
+  });
   ins(prods);
 }
-function getEmbalagemMap() {
-  return db.prepare('SELECT plu, qtd_embalagem FROM prod_emb').all()
-    .reduce((m, r) => { m[r.plu] = r.qtd_embalagem; return m; }, {});
+function getCustoMap() {
+  return db.prepare('SELECT plu, custo_unit FROM prod_emb WHERE custo_unit > 0').all()
+    .reduce((m, r) => { m[r.plu] = r.custo_unit; return m; }, {});
 }
 
 function getFiscal(loja, plu) {
@@ -410,7 +412,7 @@ module.exports = {
   getEstoque, getEstoqueExato, setEstoque,
   getCompras, setCompras, datasFaltandoCompras,
   getFiscal, setFiscal, plusSemFiscal,
-  setEmbalagemMap, getEmbalagemMap,
+  setEmbalagemMap, getCustoMap,
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
   salvarPedido, listarPedidos, verPedido, deletarPedido,
