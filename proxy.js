@@ -806,7 +806,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/pedidos/salvar' && req.method === 'POST') {
       const body = await readBody(req);
       const p = JSON.parse(body);
-      const id = db.salvarPedido(p, sess?.usuario || '');
+      const id = db.salvarPedido(p, sessao?.usuario || '');
       return jRes(res, 200, { id });
     }
     if (pathname === '/api/pedidos/listar') {

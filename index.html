@@ -286,8 +286,8 @@
       <span id="banco-dot" style="width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0"></span>
       <span id="banco-txt" style="font-size:12px;color:var(--muted)">Verificando banco local...</span>
     </div>
-    <button class="btn-sec" style="font-size:12px;padding:6px 16px;white-space:nowrap" id="btn-sync" onclick="iniciarSync()">⟳ Sincronizar Banco</button>
-    <span style="font-size:11px;color:var(--muted)">90 dias · Lucro Real / SP</span>
+    <button class="btn-sec" style="font-size:12px;padding:6px 16px;white-space:nowrap" id="btn-sync" onclick="abrirModalSync()">⟳ Sincronizar Banco</button>
+    <span style="font-size:11px;color:var(--muted)">Lucro Real / SP</span>
   </div>
 
   <!-- Parâmetros -->
@@ -2658,7 +2658,58 @@ async function carregarCalDados() {
 }
 
 // ── Sync: sincroniza todas as lojas em sequência ──────────────────────────
-async function iniciarSync() {
+function abrirModalSync() {
+  const checks = document.getElementById('sync-lojas-checks');
+  checks.innerHTML = '';
+  const lojas = todasLojas.length ? todasLojas : [];
+  if (!lojas.length) {
+    checks.innerHTML = '<span style="color:var(--muted);font-size:13px">Carregando lojas...</span>';
+    fetch(`${API}/api/lojas`).then(r => r.json()).then(ls => {
+      todasLojas = ls; abrirModalSync();
+    });
+  } else {
+    lojas.forEach(l => {
+      const id = 'sync-loja-' + l.loja;
+      checks.innerHTML += `<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="checkbox" id="${id}" value="${l.loja}" checked style="width:16px;height:16px;accent-color:var(--accent)">
+        <span>${l.fantasia || 'Loja ' + l.loja} <small style="color:var(--muted)">(loja ${l.loja})</small></span>
+      </label>`;
+    });
+  }
+  // Reset dias selecionados para 90
+  document.querySelectorAll('.sync-dias-btn').forEach(b => b.classList.toggle('sync-dias-sel', b.dataset.dias === '90'));
+  document.getElementById('sync-dias-custom').value = '';
+  document.getElementById('modal-sync').style.display = 'flex';
+}
+
+function fecharModalSync() {
+  document.getElementById('modal-sync').style.display = 'none';
+}
+
+function selectDias(btn) {
+  document.querySelectorAll('.sync-dias-btn').forEach(b => b.classList.remove('sync-dias-sel'));
+  btn.classList.add('sync-dias-sel');
+  document.getElementById('sync-dias-custom').value = '';
+}
+
+function deselectDiasBtns() {
+  document.querySelectorAll('.sync-dias-btn').forEach(b => b.classList.remove('sync-dias-sel'));
+}
+
+async function confirmarSync() {
+  const lojasChecked = [...document.querySelectorAll('#sync-lojas-checks input:checked')].map(i => parseInt(i.value));
+  if (!lojasChecked.length) { alert('Selecione pelo menos uma loja.'); return; }
+
+  const customDias = parseInt(document.getElementById('sync-dias-custom').value);
+  const btnSel = document.querySelector('.sync-dias-btn.sync-dias-sel');
+  const dias = customDias > 0 ? customDias : (btnSel ? parseInt(btnSel.dataset.dias) : 90);
+  if (!dias || dias < 1) { alert('Informe o período de histórico.'); return; }
+
+  fecharModalSync();
+  await iniciarSync(lojasChecked, dias);
+}
+
+async function iniciarSync(lojasIds, diasHist) {
   const btn = document.getElementById('btn-sync');
   btn.disabled = true;
   document.getElementById('prog-overlay').classList.add('show');
@@ -2666,16 +2717,16 @@ async function iniciarSync() {
   atualizarProgresso(0, 'Carregando lista de lojas...');
 
   try {
-    // Usa todas as lojas disponíveis, não depende de seleção
-    const lojas = todasLojas.length ? todasLojas : await fetch(`${API}/api/lojas`).then(r => r.json());
-    const ids = lojas.map(l => l.loja);
+    const todasL = todasLojas.length ? todasLojas : await fetch(`${API}/api/lojas`).then(r => r.json());
+    const ids = lojasIds || todasL.map(l => l.loja);
+    const dias = diasHist || 90;
 
     for (let i = 0; i < ids.length; i++) {
       const lid = ids[i];
-      const nome = lojas.find(l => l.loja === lid)?.fantasia || `Loja ${lid}`;
-      atualizarProgresso(Math.round(i / ids.length * 100), `[${i+1}/${ids.length}] Sincronizando ${nome}...`);
+      const nome = todasL.find(l => l.loja === lid)?.fantasia || `Loja ${lid}`;
+      atualizarProgresso(Math.round(i / ids.length * 100), `[${i+1}/${ids.length}] Sincronizando ${nome} (${dias} dias)...`);
 
-      const { jobId } = await fetch(`${API}/api/sync/iniciar?loja=${lid}&dias=90`).then(r => r.json());
+      const { jobId } = await fetch(`${API}/api/sync/iniciar?loja=${lid}&dias=${dias}`).then(r => r.json());
       await new Promise((resolve, reject) => {
         syncPollTimer = setInterval(async () => {
           try {
@@ -2845,6 +2896,42 @@ async function alterarSenha() {
     </div>
   </div>
 </div>
+
+<!-- Modal Sync -->
+<div id="modal-sync" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px 32px;width:420px;max-width:95vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="margin:0;font-size:16px">⟳ Sincronizar Banco</h3>
+      <button onclick="fecharModalSync()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="margin-bottom:18px">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">LOJAS</label>
+      <div id="sync-lojas-checks" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">PERÍODO DE HISTÓRICO</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="sync-dias-btn" data-dias="30" onclick="selectDias(this)">30 dias</button>
+        <button class="sync-dias-btn" data-dias="60" onclick="selectDias(this)">60 dias</button>
+        <button class="sync-dias-btn sync-dias-sel" data-dias="90" onclick="selectDias(this)">90 dias</button>
+        <button class="sync-dias-btn" data-dias="180" onclick="selectDias(this)">180 dias</button>
+        <input id="sync-dias-custom" type="number" min="1" max="365" placeholder="outro..." style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px" oninput="deselectDiasBtns()" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn-sec" onclick="fecharModalSync()">Cancelar</button>
+      <button class="btn-pri" id="btn-sync-confirmar" onclick="confirmarSync()">⟳ Sincronizar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.sync-dias-btn { padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;cursor:pointer; }
+.sync-dias-btn.sync-dias-sel { border-color:var(--accent);background:var(--accent);color:#fff; }
+</style>
 
 </body>
 </html>
