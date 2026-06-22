@@ -342,8 +342,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
 
       estIniPorLoja[lid] = {};
       estFimPorLoja[lid] = {};
-      (db.getEstoque(lid, dataInicio) || []).forEach(e => { estIniPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
-      (db.getEstoque(lid, dataFim)    || []).forEach(e => { estFimPorLoja[lid][e.plu]  = parseFloat(e.quantidade_total || 0); });
+      // Hipcom só fecha o estoque do dia no encerramento — usa ontem como referência atual
+      const dataEstFimAnalise = daysAgo(1);
+      (db.getEstoque(lid, dataInicio)        || []).forEach(e => { estIniPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
+      (db.getEstoque(lid, dataEstFimAnalise) || []).forEach(e => { estFimPorLoja[lid][e.plu]  = parseFloat(e.quantidade_total || 0); });
 
       comprasPorLoja[lid]      = {};
       comprasValorPorLoja[lid] = {}; // plu → {qtd, valor} para custo médio ponderado
