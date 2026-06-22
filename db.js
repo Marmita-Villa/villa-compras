@@ -392,7 +392,7 @@ module.exports = {
   getProdutos, setProdutos,
   getFP, setFP,
   getVendas, setVendas, datasFaltandoVendas,
-  getEstoque, setEstoque,
+  getEstoque, getEstoqueExato, setEstoque,
   getCompras, setCompras, datasFaltandoCompras,
   getFiscal, setFiscal, plusSemFiscal,
   getStats,
