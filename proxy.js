@@ -337,11 +337,14 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
           const p = item.plu, qtd = parseFloat(item.quantidade_total || 0);
+          // qtd_embalagem converte "scans de caixa" para unidades individuais
+          // (ex: 1 scan de caixa de 4 tubos → 4 unidades individuais)
+          const emb = embMap[p] || 1;
+          const qtdUnid = qtd * emb;
           if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0, custoTotal: 0 };
-          vendasPorLoja[lid][p].total      += qtd;
+          vendasPorLoja[lid][p].total      += qtdUnid;
           vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0);
-          // custo×qtd usa a mesma unidade da API (seja embalagem ou unidade individual)
-          vendasPorLoja[lid][p].custoTotal += parseFloat(item.custo || 0) * qtd;
+          vendasPorLoja[lid][p].custoTotal += parseFloat(item.custo || 0) * qtdUnid;
           if (qtd > 0) vendasPorLoja[lid][p].dias++;
         });
       }
