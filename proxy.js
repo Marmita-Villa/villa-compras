@@ -337,10 +337,11 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
           const p = item.plu, qtd = parseFloat(item.quantidade_total || 0);
-          if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0 };
+          if (!vendasPorLoja[lid][p]) vendasPorLoja[lid][p] = { total: 0, dias: 0, valorTotal: 0, custoTotal: 0 };
           vendasPorLoja[lid][p].total      += qtd;
-          // valor_total da API = qtd_unidades × preco_embalagem → divide por qtd_embalagem para obter receita unitária real
-          vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0) / (embMap[p] || 1);
+          vendasPorLoja[lid][p].valorTotal += parseFloat(item.valor_total || 0);
+          // custo×qtd usa a mesma unidade da API (seja embalagem ou unidade individual)
+          vendasPorLoja[lid][p].custoTotal += parseFloat(item.custo || 0) * qtd;
           if (qtd > 0) vendasPorLoja[lid][p].dias++;
         });
       }
@@ -422,21 +423,19 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       // Agregado total
       // Vendas: só lojas de venda (exceto CD)
       const vTotal      = porLoja.filter(l => l.loja !== LOJA_CD).reduce((s, l) => s + l.venda_total, 0);
-      const receitaReal = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.valorTotal || 0), 0);
+      const receitaReal  = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.valorTotal  || 0), 0);
+      const custoTotalVendas = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.custoTotal || 0), 0);
       const vDiasMedia = lojaVenda.reduce((s, lid) => s + (vendasPorLoja[lid]?.[plu]?.dias || 0), 0) / Math.max(lojaVenda.length, 1);
       // Estoque: todas as lojas (CD + lojas de venda)
       const estAtual  = porLoja.reduce((s, l) => s + l.estoque,    0);
       const estInicio = porLoja.reduce((s, l) => s + l.estoque_ini, 0);
       const totalCmp  = porLoja.reduce((s, l) => s + l.compras,    0);
 
-      // Custo médio ponderado: usa prod.custo (campo real do Hipcom) como base
-      // valor_total das compras é inconsistente (embalagem vs unidade) — prod.custo é confiável
-      const cmpAgg = lojaIds.reduce((s, lid) => {
-        const c = comprasValorPorLoja[lid]?.[plu];
-        if (c) { s.qtd += c.qtd; }
-        return s;
-      }, { qtd: 0 });
-      const custoMedioPonderado = custo > 0 ? custo : null;
+      // Custo médio ponderado: derivado do custo×qtd das próprias vendas (mesma unidade da API)
+      // Fallback: prod.custo quando não há histórico de vendas com custo no período
+      const custoMedioPonderado = vTotal > 0 && custoTotalVendas > 0
+        ? custoTotalVendas / vTotal
+        : (custo > 0 ? custo : null);
 
       const vendaMediaDia = diasAnalise > 0 ? vTotal / diasAnalise : 0;
       const quebraEst     = Math.max(0, estInicio + totalCmp - vTotal - estAtual);
