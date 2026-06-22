@@ -146,15 +146,23 @@ function datasFaltandoVendas(loja, datas) {
 }
 
 // ── Estoques ───────────────────────────────────────────────────────────────
-const stmtGetEst = db.prepare('SELECT json, synced_at FROM estoques WHERE loja=? AND data=?');
-const stmtSetEst = db.prepare('INSERT OR REPLACE INTO estoques(loja,data,json,synced_at) VALUES(?,?,?,?)');
+const stmtGetEst        = db.prepare('SELECT json, synced_at FROM estoques WHERE loja=? AND data=?');
+const stmtGetEstRecente = db.prepare('SELECT json, synced_at, data FROM estoques WHERE loja=? AND data<=? ORDER BY data DESC LIMIT 1');
+const stmtSetEst        = db.prepare('INSERT OR REPLACE INTO estoques(loja,data,json,synced_at) VALUES(?,?,?,?)');
 
 function getEstoque(loja, data) {
-  const r = stmtGetEst.get(loja, data);
-  if (!r) return null;
-  const ttl = data === hoje() ? TTL.hoje : TTL.passado;
-  if (isStale(r.synced_at, ttl)) return null;
-  return JSON.parse(r.json);
+  // Tenta data exata primeiro
+  let r = stmtGetEst.get(loja, data);
+  if (r) {
+    const ttl = data === hoje() ? TTL.hoje : TTL.passado;
+    if (!isStale(r.synced_at, ttl)) return JSON.parse(r.json);
+  }
+  // Fallback: data mais recente disponível (até 7 dias atrás)
+  const r2 = stmtGetEstRecente.get(loja, data);
+  if (!r2) return null;
+  const diasAtraso = Math.floor((new Date(data) - new Date(r2.data)) / 86400000);
+  if (diasAtraso > 7) return null; // dado muito antigo, não usar
+  return JSON.parse(r2.json);
 }
 function setEstoque(loja, data, items) {
   stmtSetEst.run(loja, data, JSON.stringify(items), now());
