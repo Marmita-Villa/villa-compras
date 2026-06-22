@@ -147,7 +147,7 @@ function datasFaltandoVendas(loja, datas) {
 
 // ── Estoques ───────────────────────────────────────────────────────────────
 const stmtGetEst        = db.prepare('SELECT json, synced_at FROM estoques WHERE loja=? AND data=?');
-const stmtGetEstRecente = db.prepare('SELECT json, synced_at, data FROM estoques WHERE loja=? AND data<=? ORDER BY data DESC LIMIT 1');
+const stmtGetEstRecente = db.prepare("SELECT json, synced_at, data FROM estoques WHERE loja=? AND data<=? AND json!='[]' ORDER BY data DESC LIMIT 1");
 const stmtSetEst        = db.prepare('INSERT OR REPLACE INTO estoques(loja,data,json,synced_at) VALUES(?,?,?,?)');
 
 function getEstoque(loja, data) {
