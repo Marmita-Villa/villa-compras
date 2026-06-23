@@ -370,7 +370,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
           if (!comprasValorPorLoja[lid][c.plu]) comprasValorPorLoja[lid][c.plu] = { qtd: 0, valor: 0 };
           comprasValorPorLoja[lid][c.plu].qtd   += parseFloat(c.quantidade_total || 0);
           // valor_total da API = qtd_unidades × custo_embalagem → divide por qtd_embalagem para obter custo unitário real
-          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0) / (embMap[c.plu] || 1);
+          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0);
         });
       }
     }
