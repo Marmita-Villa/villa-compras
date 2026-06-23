@@ -552,7 +552,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         recomenda_compra: recomendaCompra, status, alertas,
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
         fiscal: {
-          custo_hipcom: +custoBase.toFixed(4), custo_balanco: +custo.toFixed(4), preco_venda: +preco.toFixed(4),
+          custo_hipcom: +custo.toFixed(4), custo_nf_base: custoNF > 0 ? +custoNF.toFixed(4) : null, preco_venda: +preco.toFixed(4),
           custo_nf_ultimo: (() => {
             // custo unitário da última NF de entrada deste PLU (qualquer loja)
             let melhorData = '', melhorCusto = 0;
