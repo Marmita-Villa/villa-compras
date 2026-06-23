@@ -478,7 +478,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       if (qtdSug > qtdEmb) {
         porLoja.forEach(l => {
           const qtdTransf = Math.floor(l.excesso / qtdEmb) * qtdEmb;
-          if (qtdTransf >= qtdEmb) transferencias.push({ de_loja: l.loja, para_loja: lojaRef, qtd: qtdTransf, excesso: l.excesso });
+          if (qtdTransf >= qtdEmb && l.loja !== lojaRef) transferencias.push({ de_loja: l.loja, para_loja: lojaRef, qtd: qtdTransf, excesso: l.excesso });
         });
       }
       const qtdTransfTotal   = Math.min(transferencias.reduce((s, t) => s + t.qtd, 0), qtdFinal);
