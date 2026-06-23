@@ -515,13 +515,6 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         alertas.push({ tipo: 'SEM_NCM', msg: 'NCM não cadastrado na Hipcom.' });
       if (fRaw && !ca.tem_st && ncmInfo?.icms_sp?.st_ativo)
         alertas.push({ tipo: 'DIVERGENCIA_CST', msg: `Hipcom CST ${fRaw.icmsCstSaida} mas NCM aponta ST ativa em SP.` });
-      // Alerta se alíquota ICMS no Hipcom difere do esperado pelo NCM
-      // Só compara produtos SEM ST — com ST a alíquota de entrada segue regras próprias (CST 18, redução de base, etc.)
-      const alqNcmEsperada = ncmInfo?.icms_sp?.aliq ?? null;
-      const alqHipcom      = fRaw ? parseFloat(fRaw.icmsAlqEntrada || 0) : null;
-      const temSTCadastro  = fRaw ? ['10','30','60','70'].includes(String(fRaw.icmsCstSaida||'').trim()) || String(fRaw.icmsCstEntrada||'').trim() === '18' : false;
-      if (!temSTCadastro && alqNcmEsperada !== null && alqHipcom !== null && Math.abs(alqHipcom - alqNcmEsperada) > 0.1)
-        alertas.push({ tipo: 'ALQ_DIVERGENTE', msg: `Alíquota ICMS entrada no Hipcom (${alqHipcom}%) difere do esperado pelo NCM (${alqNcmEsperada}%). Verifique o cadastro fiscal.` });
       if (!fRaw)
         alertas.push({ tipo: 'SEM_FISCAL', msg: 'Sem dados fiscais no Hipcom — estimado pela tabela NCM.' });
       if (transferencias.length)
