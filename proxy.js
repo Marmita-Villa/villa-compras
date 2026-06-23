@@ -478,7 +478,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       if (qtdSug > qtdEmb) {
         porLoja.forEach(l => {
           const qtdTransf = Math.floor(l.excesso / qtdEmb) * qtdEmb;
-          if (qtdTransf >= qtdEmb) transferencias.push({ de_loja: l.loja, qtd: qtdTransf, excesso: l.excesso });
+          if (qtdTransf >= qtdEmb) transferencias.push({ de_loja: l.loja, para_loja: lojaRef, qtd: qtdTransf, excesso: l.excesso });
         });
       }
       const qtdTransfTotal   = Math.min(transferencias.reduce((s, t) => s + t.qtd, 0), qtdFinal);
@@ -518,7 +518,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       if (!fRaw)
         alertas.push({ tipo: 'SEM_FISCAL', msg: 'Sem dados fiscais no Hipcom — estimado pela tabela NCM.' });
       if (transferencias.length)
-        alertas.push({ tipo: 'TRANSFERENCIA', msg: `Excesso em ${transferencias.length} loja(s) — verifique transferência antes de comprar.` });
+        alertas.push({ tipo: 'TRANSFERENCIA', msg: `Excesso em ${transferencias.length} loja(s) — verifique transferência antes de comprar.`, lojas: transferencias.map(t => ({ de_loja: t.de_loja, para_loja: t.para_loja })) });
 
       return {
         plu, nome: prod.descricao || '', ncm: ncmStr !== '00000000' ? ncmStr : 'N/D',

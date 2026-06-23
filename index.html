@@ -819,8 +819,12 @@ function alertaBadges(alertas) {
       SEM_NCM:        ['b-muted','Sem NCM'],
       DIVERGENCIA_CST:['b-div','⚠ CST Diverge'],
       ALQ_DIVERGENTE: ['b-div','⚠ Alíq. Diverge'],
-      TRANSFERENCIA:  ['b-transf','🔄 Transferir'],
     };
+    if (a.tipo === 'TRANSFERENCIA') {
+      const txt = (a.lojas||[]).map(t=>`Loja ${t.de_loja}→${t.para_loja}`).join(', ');
+      const label = txt ? `🔄 Transferir ${txt}` : '🔄 Transferir';
+      return `<span class="badge b-transf" title="${(a.msg||'').replace(/"/g,"'")}">${label}</span>`;
+    }
     const [c,l] = map[a.tipo]||['b-muted',a.tipo];
     return `<span class="badge ${c}" title="${(a.msg||'').replace(/"/g,"'")}">${l}</span>`;
   }).join(' ');
