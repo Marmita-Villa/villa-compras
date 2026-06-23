@@ -550,6 +550,8 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       };
     });
 
+    resultado.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+
     jAtualiza(jid, 100, `Concluído — ${resultado.length} produtos`);
     j.resultado = resultado; j.done = true;
 
