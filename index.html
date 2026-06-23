@@ -1768,9 +1768,7 @@ function renderTabelaMargem() {
 
   const tbody = document.getElementById('margem-tbody');
 
-  // Paginação simples — mostrar no máximo 300 linhas de uma vez
-  const MAX = 300;
-  const vis = dados.slice(0, MAX);
+  const vis = dados;
   tbody.innerHTML = vis.map(d => `
     <tr>
       <td>${statusBadge(d.status)}</td>
