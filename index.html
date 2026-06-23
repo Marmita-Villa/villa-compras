@@ -478,6 +478,8 @@
         <div class="panel-title" style="margin:0">📋 Novo Pedido de Compra</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-sec" onclick="pedidoCarregarAnalise()" style="font-size:12px;padding:6px 14px">⬇ Carregar da Análise</button>
+          <button id="ped-btn-todos" class="btn-sec" onclick="pedidoSetFiltro('todos')" style="font-size:12px;padding:6px 14px;background:rgba(124,106,247,.18);border-color:#7c6af7;color:#a78bfa">Todos</button>
+          <button id="ped-btn-sug" class="btn-sec" onclick="pedidoSetFiltro('sugestao')" style="font-size:12px;padding:6px 14px">Só Sugestão</button>
           <button class="btn-sec" onclick="pedidoSalvar()" style="font-size:12px;padding:6px 14px;background:rgba(34,197,94,.12);border-color:#22c55e;color:#22c55e" id="btn-salvar-pedido" disabled>💾 Salvar Pedido</button>
           <button class="btn-sec" onclick="pedidoImprimir()" style="font-size:12px;padding:6px 14px" id="btn-imprimir-pedido" disabled>🖨 Imprimir</button>
           <button class="btn-sec" onclick="pedidoLimpar()" style="font-size:12px;padding:6px 14px;background:rgba(239,68,68,.1);border-color:#ef4444;color:#ef4444">✕ Limpar</button>
@@ -2006,6 +2008,22 @@ function pedidoCarregarAnalise() {
   switchTab('pedido');
 }
 
+let _pedFiltro = 'todos';
+function pedidoSetFiltro(f) {
+  _pedFiltro = f;
+  const ativo   = 'background:rgba(124,106,247,.18);border-color:#7c6af7;color:#a78bfa';
+  const inativo = '';
+  document.getElementById('ped-btn-todos').style.cssText += f==='todos' ? ativo : inativo;
+  document.getElementById('ped-btn-sug').style.cssText   += f==='sugestao' ? ativo : inativo;
+  document.getElementById('ped-btn-todos').style.background = f==='todos' ? 'rgba(124,106,247,.18)' : '';
+  document.getElementById('ped-btn-todos').style.borderColor = f==='todos' ? '#7c6af7' : '';
+  document.getElementById('ped-btn-todos').style.color = f==='todos' ? '#a78bfa' : '';
+  document.getElementById('ped-btn-sug').style.background = f==='sugestao' ? 'rgba(124,106,247,.18)' : '';
+  document.getElementById('ped-btn-sug').style.borderColor = f==='sugestao' ? '#7c6af7' : '';
+  document.getElementById('ped-btn-sug').style.color = f==='sugestao' ? '#a78bfa' : '';
+  pedidoRenderTabela();
+}
+
 function pedidoRenderTabela() {
   const tbody = document.getElementById('ped-tbody');
   if (!_pedItens.length) {
@@ -2016,7 +2034,10 @@ function pedidoRenderTabela() {
     return;
   }
 
-  tbody.innerHTML = _pedItens.map((it, i) => {
+  const itensFiltrados = _pedFiltro === 'sugestao'
+    ? _pedItens.map((it, idx) => ({it, idx})).filter(({it}) => it.qtd_sug > 0)
+    : _pedItens.map((it, idx) => ({it, idx}));
+  tbody.innerHTML = itensFiltrados.map(({it, idx: i}) => {
     const custoRealNeg = _pedCustoReal(it.custo_negoc, it.custo_hipcom, it.custo_real);
     const margemNeg    = _pedMargem(it.preco_venda, custoRealNeg, it.fiscal);
     const delta        = it.custo_hipcom > 0 ? ((it.custo_negoc - it.custo_hipcom) / it.custo_hipcom * 100) : 0;
