@@ -818,6 +818,7 @@ function alertaBadges(alertas) {
       ISENTO:         ['b-isento','Isento'],
       SEM_NCM:        ['b-muted','Sem NCM'],
       DIVERGENCIA_CST:['b-div','⚠ CST Diverge'],
+      ALQ_DIVERGENTE: ['b-div','⚠ Alíq. Diverge'],
       TRANSFERENCIA:  ['b-transf','🔄 Transferir'],
     };
     const [c,l] = map[a.tipo]||['b-muted',a.tipo];
@@ -2000,7 +2001,12 @@ function pedidoCarregarAnalise() {
     st_removida:  d.fiscal?.ncm_info?.st_removida ?? false,
     alq_icms:     d.fiscal?.cenario_atual?.alq_icms_entrada ?? 12,
     custo_justo_sem_st: d.fiscal?.ncm_info?.st_removida
-      ? +((d.fiscal?.custo_hipcom || 0) / (1 + (d.fiscal?.cenario_atual?.alq_icms_entrada || 12) / 100)).toFixed(4)
+      ? (() => {
+          // custo_NF / (1 - alq_entrada): fornecedor recolhe ICMS por dentro
+          const custoNF  = d.fiscal?.custo_nf_ultimo || d.fiscal?.custo_hipcom || 0;
+          const alq      = (d.fiscal?.cenario_atual?.alq_icms_entrada || 12) / 100;
+          return alq < 1 && custoNF > 0 ? +(custoNF / (1 - alq)).toFixed(4) : null;
+        })()
       : null,
   }));
 

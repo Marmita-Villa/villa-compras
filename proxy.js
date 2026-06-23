@@ -376,10 +376,16 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         (db.getCompras(lid, dt) || []).forEach(c => {
           if (!comprasPorLoja[lid][c.plu]) comprasPorLoja[lid][c.plu] = 0;
           comprasPorLoja[lid][c.plu] += parseFloat(c.quantidade_total || 0);
-          if (!comprasValorPorLoja[lid][c.plu]) comprasValorPorLoja[lid][c.plu] = { qtd: 0, valor: 0 };
+          if (!comprasValorPorLoja[lid][c.plu]) comprasValorPorLoja[lid][c.plu] = { qtd: 0, valor: 0, ultimaData: '', ultimoCustoNF: 0 };
           comprasValorPorLoja[lid][c.plu].qtd   += parseFloat(c.quantidade_total || 0);
-          // valor_total da API = qtd_unidades × custo_embalagem → divide por qtd_embalagem para obter custo unitário real
-          comprasValorPorLoja[lid][c.plu].valor += parseFloat(c.valor_total || 0);
+          comprasValorPorLoja[lid][c.plu].valor  += parseFloat(c.valor_total || 0);
+          // rastreia custo unitário da NF mais recente (valor_total / quantidade_total)
+          const qtdC = parseFloat(c.quantidade_total || 0);
+          const valC = parseFloat(c.valor_total || 0);
+          if (qtdC > 0 && dt >= comprasValorPorLoja[lid][c.plu].ultimaData) {
+            comprasValorPorLoja[lid][c.plu].ultimaData    = dt;
+            comprasValorPorLoja[lid][c.plu].ultimoCustoNF = valC / qtdC;
+          }
         });
       }
     }
@@ -509,6 +515,11 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         alertas.push({ tipo: 'SEM_NCM', msg: 'NCM não cadastrado na Hipcom.' });
       if (fRaw && !ca.tem_st && ncmInfo?.icms_sp?.st_ativo)
         alertas.push({ tipo: 'DIVERGENCIA_CST', msg: `Hipcom CST ${fRaw.icmsCstSaida} mas NCM aponta ST ativa em SP.` });
+      // Alerta se alíquota ICMS no Hipcom difere do esperado pelo NCM
+      const alqNcmEsperada = ncmInfo?.icms_sp?.aliq ?? null;
+      const alqHipcom      = fRaw ? parseFloat(fRaw.icmsAlqEntrada || 0) : null;
+      if (alqNcmEsperada !== null && alqHipcom !== null && Math.abs(alqHipcom - alqNcmEsperada) > 0.1)
+        alertas.push({ tipo: 'ALQ_DIVERGENTE', msg: `Alíquota ICMS entrada no Hipcom (${alqHipcom}%) difere do esperado pelo NCM (${alqNcmEsperada}%). Verifique o cadastro fiscal.` });
       if (!fRaw)
         alertas.push({ tipo: 'SEM_FISCAL', msg: 'Sem dados fiscais no Hipcom — estimado pela tabela NCM.' });
       if (transferencias.length)
@@ -535,6 +546,18 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
         fiscal: {
           custo_hipcom: +custo.toFixed(4), preco_venda: +preco.toFixed(4),
+          custo_nf_ultimo: (() => {
+            // custo unitário da última NF de entrada deste PLU (qualquer loja)
+            let melhorData = '', melhorCusto = 0;
+            for (const lid of lojaIds) {
+              const cv = comprasValorPorLoja[lid]?.[plu];
+              if (cv && cv.ultimaData >= melhorData && cv.ultimoCustoNF > 0) {
+                melhorData  = cv.ultimaData;
+                melhorCusto = cv.ultimoCustoNF;
+              }
+            }
+            return melhorCusto > 0 ? +melhorCusto.toFixed(4) : null;
+          })(),
           cenario_atual: ca, cenario_anterior: cAntes, cenarios_reforma: reforma,
           ncm_info: ncmInfo ? {
             descricao: ncmInfo.descricao, categoria: ncmInfo.categoria,
