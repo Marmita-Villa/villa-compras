@@ -417,18 +417,16 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
           custoNF      = cv.ultimoCustoNF;
         }
       }
-      const custoBase = custoNF > 0 ? custoNF : custo; // usa NF se disponível
-
-      const ca      = calcLucroReal(custoBase, preco, fRaw, ncmInfo);
+      const ca      = calcLucroReal(custo, preco, fRaw, ncmInfo);
 
       let cAntes = null;
       if (ncmInfo && ncmInfo.icms_sp && ncmInfo.icms_sp.st_removida) {
-        const custoComST = custoBase * (1 + (ncmInfo.icms_sp.aliq || 12) / 100);
+        const custoComST = custo * (1 + (ncmInfo.icms_sp.aliq || 12) / 100);
         const fAntes     = fRaw ? { ...fRaw, icmsCstSaida: '60', icmsAlqEntrada: 0, icmsAlqSaida: 0 } : null;
         cAntes = calcLucroReal(custoComST, preco, fAntes, ncmInfo);
         cAntes.nota = 'Estimativa com ST ativa';
       }
-      const reforma = calcReforma(custoBase, preco, ncmInfo, ca);
+      const reforma = calcReforma(custo, preco, ncmInfo, ca);
 
       // Dados por loja (para transferência)
       const qtdEmb = parseFloat(prod.qtd_embalagem || 1) || 1;
@@ -552,7 +550,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         recomenda_compra: recomendaCompra, status, alertas,
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
         fiscal: {
-          custo_hipcom: +custo.toFixed(4), custo_nf_base: custoNF > 0 ? +custoNF.toFixed(4) : null, preco_venda: +preco.toFixed(4),
+          custo_hipcom: +custo.toFixed(4), preco_venda: +preco.toFixed(4),
           custo_nf_ultimo: (() => {
             // custo unitário da última NF de entrada deste PLU (qualquer loja)
             let melhorData = '', melhorCusto = 0;
