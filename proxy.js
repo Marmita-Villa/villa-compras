@@ -403,20 +403,32 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
     const resultado = plus.map(plu => {
       const prod    = prodMap[plu] || {};
       const fRaw    = fiscalMap[plu];
-      const custo   = parseFloat(prod.custo        || 0);
+      const custo   = parseFloat(prod.custo        || 0); // custo balanço (reposição)
       const preco   = parseFloat(prod.valor_produto || 0);
       const ncmStr  = String(prod.ncm || '').replace(/\D/g, '').padStart(8, '0');
       const ncmInfo = getNcmInfo(ncmStr);
-      const ca      = calcLucroReal(custo, preco, fRaw, ncmInfo);
+
+      // custo da última NF de entrada (base mais precisa para Custo Líq.)
+      let custoNF = 0, melhorDataNF = '';
+      for (const lid of lojaIds) {
+        const cv = comprasValorPorLoja[lid]?.[plu];
+        if (cv && cv.ultimaData >= melhorDataNF && cv.ultimoCustoNF > 0) {
+          melhorDataNF = cv.ultimaData;
+          custoNF      = cv.ultimoCustoNF;
+        }
+      }
+      const custoBase = custoNF > 0 ? custoNF : custo; // usa NF se disponível
+
+      const ca      = calcLucroReal(custoBase, preco, fRaw, ncmInfo);
 
       let cAntes = null;
       if (ncmInfo && ncmInfo.icms_sp && ncmInfo.icms_sp.st_removida) {
-        const custoComST = custo * (1 + (ncmInfo.icms_sp.aliq || 12) / 100);
+        const custoComST = custoBase * (1 + (ncmInfo.icms_sp.aliq || 12) / 100);
         const fAntes     = fRaw ? { ...fRaw, icmsCstSaida: '60', icmsAlqEntrada: 0, icmsAlqSaida: 0 } : null;
         cAntes = calcLucroReal(custoComST, preco, fAntes, ncmInfo);
         cAntes.nota = 'Estimativa com ST ativa';
       }
-      const reforma = calcReforma(custo, preco, ncmInfo, ca);
+      const reforma = calcReforma(custoBase, preco, ncmInfo, ca);
 
       // Dados por loja (para transferência)
       const qtdEmb = parseFloat(prod.qtd_embalagem || 1) || 1;
@@ -540,7 +552,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         recomenda_compra: recomendaCompra, status, alertas,
         transferencias, por_loja: porLoja, lojas_analise: lojaIds,
         fiscal: {
-          custo_hipcom: +custo.toFixed(4), preco_venda: +preco.toFixed(4),
+          custo_hipcom: +custoBase.toFixed(4), custo_balanco: +custo.toFixed(4), preco_venda: +preco.toFixed(4),
           custo_nf_ultimo: (() => {
             // custo unitário da última NF de entrada deste PLU (qualquer loja)
             let melhorData = '', melhorCusto = 0;
