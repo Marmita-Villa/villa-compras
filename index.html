@@ -331,6 +331,10 @@
       </label>
       <button id="btn-analisar" onclick="analisar()">Analisar</button>
     </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="chk-todos-forn" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"/>
+      <label for="chk-todos-forn" style="font-size:12px;color:var(--muted);cursor:pointer">Mostrar todos os produtos do fornecedor (incluindo fora do período de análise)</label>
+    </div>
   </div>
 
   <!-- Cronograma Reforma Tributária (fixo, sempre visível) -->
@@ -862,6 +866,7 @@ function statusBadge(s) {
     'RUPTURA FREQUENTE':['b-purple','Ruptura Freq.'],
     'SEM GIRO':         ['b-info',  'Sem Giro'],
     'INATIVO':          ['b-muted', 'Inativo'],
+    'FORA DO PERÍODO':  ['b-muted', 'Fora do Período'],
     'ABAIXO DO CUSTO':  ['b-danger','Abaixo Custo'],
     'SEM CUSTO':        ['b-muted', 'Sem Custo'],
   };
@@ -1328,7 +1333,8 @@ async function analisar() {
 
   try {
     // 1. Inicia job
-    const startRes = await fetch(`${API}/api/analise/iniciar?lojas=${lojas.join(',')}&id=${encodeURIComponent(id)}&dias=${dias}&dias_abast=${abast}`);
+    const todosForn = document.getElementById('chk-todos-forn')?.checked ? '&todos=1' : '';
+    const startRes = await fetch(`${API}/api/analise/iniciar?lojas=${lojas.join(',')}&id=${encodeURIComponent(id)}&dias=${dias}&dias_abast=${abast}${todosForn}`);
     const { jobId, erro: erroInicio } = await startRes.json();
     if (erroInicio) throw new Error(erroInicio);
 
