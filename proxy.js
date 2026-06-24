@@ -339,16 +339,28 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
     const custoMap = db.getCustoMap();
     todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
 
-    // Se algum PLU analisado não tem nome ou custo (entra_rentabilidade=N), busca sem filtro
+    // Se algum PLU analisado não tem nome ou custo (entra_rentabilidade=N),
+    // tenta primeiro o cache prod_emb do banco (salvo no sync sem filtro de rentabilidade)
     const plusSemDados = plus.filter(p => !prodMap[p] || !custoMap[String(p)]);
     if (plusSemDados.length > 0) {
-      jAtualiza(jid, 37, 'Buscando dados de produtos não catalogados...');
-      const todosProdsAnalise = await hGetAll(`/api/hipcom/produtos?loja=${lojaRef}`);
-      db.setEmbalagemMap(todosProdsAnalise);
-      todosProdsAnalise.forEach(p => {
-        if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo);
-        if (!prodMap[p.plu]) prodMap[p.plu] = p; // preenche nome/NCM de produtos fora da rentabilidade
+      const embMap = db.getProdEmbMap();
+      plusSemDados.forEach(p => {
+        const e = embMap[String(p)];
+        if (!e) return;
+        if (e.custo_unit > 0) custoMap[String(p)] = e.custo_unit;
+        if (!prodMap[p]) prodMap[p] = { plu: p, descricao: e.descricao, ncm: e.ncm, departamento: e.departamento, valor_produto: e.valor_produto, custo: e.custo_unit, qtd_embalagem: e.qtd_embalagem };
       });
+      // Só chama a Hipcom se ainda faltarem dados após o cache
+      const aindaSemDados = plusSemDados.filter(p => !prodMap[p] || !custoMap[String(p)]);
+      if (aindaSemDados.length > 0) {
+        jAtualiza(jid, 37, 'Buscando dados de produtos não catalogados na Hipcom...');
+        const todosProdsAnalise = await hGetAll(`/api/hipcom/produtos?loja=${lojaRef}`);
+        db.setEmbalagemMap(todosProdsAnalise);
+        todosProdsAnalise.forEach(p => {
+          if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo);
+          if (!prodMap[p.plu]) prodMap[p.plu] = p;
+        });
+      }
     }
 
     // Análise lê APENAS do banco local — nunca chama a Hipcom
