@@ -590,6 +590,181 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
   }
 }
 
+// ── Análise de Transferência (CD → lojas de venda) ────────────────────────
+async function rodarAnaliseTransferencia(jid, nfRef, diasAnalise, diasAbast) {
+  const j = jobs.get(jid);
+  try {
+    // Identifica PLUs da NF no CD
+    jAtualiza(jid, 5, 'Lendo itens da NF...');
+    const todasLojas = await loadLojas();
+    const lojaVenda  = todasLojas.map(l => l.loja).filter(l => l !== LOJA_CD);
+    const lojaRef    = lojaVenda[0] || 1;
+
+    const itenNF = [];
+    (db.getCompras(LOJA_CD, nfRef.data_entrada) || []).forEach(c => {
+      if (String(c.numero_nf) === String(nfRef.numero_nf) &&
+          String(c.serie_nf)  === String(nfRef.serie_nf)) {
+        itenNF.push(c);
+      }
+    });
+    if (!itenNF.length) { j.done = true; j.resultado = []; return; }
+
+    const plus        = [...new Set(itenNF.map(c => c.plu))];
+    const qtdNFporPlu = {}; // plu → qtd recebida na NF
+    const valNFporPlu = {}; // plu → valor recebido na NF
+    itenNF.forEach(c => {
+      qtdNFporPlu[c.plu] = parseFloat(c.quantidade_total || 0);
+      valNFporPlu[c.plu] = parseFloat(c.valor_total || 0);
+    });
+
+    jAtualiza(jid, 10, `${plus.length} produtos na NF. Carregando dados...`);
+
+    const lojaIds = [LOJA_CD, ...lojaVenda];
+    const todosProd = await loadProdutos(lojaRef);
+    const prodMap   = {};
+    todosProd.forEach(p => { prodMap[p.plu] = p; });
+
+    const fiscalMap = await loadFiscalBatch(lojaRef, plus, jid, 10, 40);
+
+    const dataFim      = today();
+    const dataInicio   = daysAgo(diasAnalise);
+    const datas        = dateRange(dataInicio, dataFim);
+    const dataEstFim   = daysAgo(1);
+
+    const vendasPorLoja  = {};
+    const estFimPorLoja  = {};
+    const custoMap       = db.getCustoMap();
+    todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
+
+    const plusSemCusto = plus.filter(p => !custoMap[String(p)]);
+    if (plusSemCusto.length > 0) {
+      const todosProdsAnalise = await hGetAll(`/api/hipcom/produtos?loja=${lojaRef}`);
+      db.setEmbalagemMap(todosProdsAnalise);
+      todosProdsAnalise.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
+    }
+
+    jAtualiza(jid, 45, 'Lendo vendas e estoques por loja...');
+    for (const lid of lojaIds) {
+      vendasPorLoja[lid] = {};
+      estFimPorLoja[lid] = {};
+
+      for (const dt of datas) {
+        (db.getVendas(lid, dt) || []).forEach(item => {
+          if (!plus.includes(item.plu)) return;
+          const qtd    = parseFloat(item.quantidade_total || 0);
+          const cScan  = parseFloat(item.custo || 0);
+          const cUnit  = custoMap[String(item.plu)] || cScan;
+          const emb    = cScan > 0 && cUnit > 0 && cScan > cUnit ? Math.round(cScan / cUnit) : 1;
+          const qtdU   = qtd * Math.max(1, emb);
+          if (!vendasPorLoja[lid][item.plu]) vendasPorLoja[lid][item.plu] = { total: 0, dias: 0 };
+          vendasPorLoja[lid][item.plu].total += qtdU;
+          if (qtd > 0) vendasPorLoja[lid][item.plu].dias++;
+        });
+      }
+
+      const estSnaps = db.getEstoque(lid, dataEstFim) || [];
+      estSnaps.forEach(e => { estFimPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
+    }
+
+    // Estoque atual em tempo real para lojaRef
+    todosProd.forEach(p => {
+      if (estFimPorLoja[lojaRef] !== undefined)
+        estFimPorLoja[lojaRef][p.plu] = parseFloat(p.qtd_estoque_atual || 0);
+    });
+
+    jAtualiza(jid, 75, 'Calculando sugestões de transferência...');
+
+    const resultado = plus.map(plu => {
+      const prod   = prodMap[plu] || {};
+      const custo  = parseFloat(prod.custo || 0);
+      const preco  = parseFloat(prod.valor_produto || 0);
+      const qtdEmb = parseFloat(prod.qtd_embalagem || 1) || 1;
+      const ncmStr = String(prod.ncm || '').replace(/\D/g, '').padStart(8, '0');
+      const ncmInfo= getNcmInfo(ncmStr);
+      const fRaw   = fiscalMap[plu];
+      const ca     = calcLucroReal(custo, preco, fRaw, ncmInfo);
+
+      const qtdRecebidaCD = qtdNFporPlu[plu] || 0;
+      const custoUnitNF   = qtdRecebidaCD > 0 ? (valNFporPlu[plu] || 0) / qtdRecebidaCD : custo;
+
+      // Estoque atual no CD (após receber a NF)
+      const estCD = estFimPorLoja[LOJA_CD]?.[plu] || 0;
+
+      // Por loja de venda: necessidade e sugestão de transferência
+      const porLoja = lojaVenda.map(lid => {
+        const v   = vendasPorLoja[lid]?.[plu] || { total: 0, dias: 0 };
+        const est = lid === lojaRef
+          ? parseFloat(prod.qtd_estoque_atual || estFimPorLoja[lid]?.[plu] || 0)
+          : (estFimPorLoja[lid]?.[plu] || 0);
+        const vmd    = diasAnalise > 0 ? v.total / diasAnalise : 0;
+        const nec    = vmd * diasAbast;
+        const falta  = Math.max(0, nec - est);
+        // Sugestão: o que falta, arredondado para embalagem, limitado ao disponível no CD
+        const sugestao = Math.ceil(falta / qtdEmb) * qtdEmb;
+        return {
+          loja: lid, estoque: +est.toFixed(3),
+          venda_total: +v.total.toFixed(3),
+          venda_media_dia: +vmd.toFixed(3),
+          necessidade: +nec.toFixed(3),
+          falta: +falta.toFixed(3),
+          sugestao_transferencia: sugestao,
+        };
+      });
+
+      // Total a transferir (limitado ao disponível no CD)
+      let disponivel = estCD;
+      const transfs = [];
+      for (const l of porLoja) {
+        if (l.sugestao_transferencia <= 0) continue;
+        const qtdTransf = Math.min(l.sugestao_transferencia, Math.floor(disponivel / qtdEmb) * qtdEmb);
+        if (qtdTransf > 0) {
+          transfs.push({ para_loja: l.loja, qtd: qtdTransf });
+          disponivel -= qtdTransf;
+        }
+      }
+      const totalTransf = transfs.reduce((s, t) => s + t.qtd, 0);
+      const sobraCD     = estCD - totalTransf;
+
+      let status = 'OK';
+      if (custo === 0)                                    status = 'SEM CUSTO';
+      else if (porLoja.every(l => l.venda_media_dia === 0)) status = 'SEM GIRO';
+      else if (totalTransf === 0 && estCD === 0)          status = 'SEM ESTOQUE CD';
+      else if (totalTransf === 0)                         status = 'ESTOQUE OK';
+
+      return {
+        plu, nome: prod.descricao || '',
+        ncm: ncmStr !== '00000000' ? ncmStr : 'N/D',
+        departamento: prod.departamento || '',
+        qtd_embalagem: qtdEmb,
+        qtd_recebida_cd: +qtdRecebidaCD.toFixed(3),
+        custo_unit_nf: +custoUnitNF.toFixed(4),
+        valor_total_nf: +(valNFporPlu[plu] || 0).toFixed(2),
+        estoque_cd: +estCD.toFixed(3),
+        saldo_cd_apos_transf: +sobraCD.toFixed(3),
+        total_a_transferir: +totalTransf.toFixed(3),
+        status,
+        transferencias: transfs,
+        por_loja: porLoja,
+        fiscal: { custo_hipcom: +custo.toFixed(4), preco_venda: +preco.toFixed(4), cenario_atual: ca },
+      };
+    });
+
+    resultado.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+    jAtualiza(jid, 100, `Concluído — ${resultado.length} produtos`);
+    j.resultado = {
+      nf: nfRef, lojas_venda: lojaVenda, loja_cd: LOJA_CD,
+      dias_analise: diasAnalise, dias_abast: diasAbast,
+      produtos: resultado,
+    };
+    j.done = true;
+
+  } catch (err) {
+    console.error('[transferência]', err.message);
+    j.erro = err.message; j.done = true; j.pct = 0;
+    j.etapa = 'Erro: ' + err.message;
+  }
+}
+
 // ── Cálculos fiscais ───────────────────────────────────────────────────────
 function calcLucroReal(custo, preco, f, ncmInfo) {
   if (!f) return calcFallback(custo, preco, ncmInfo);
@@ -1023,6 +1198,66 @@ const server = http.createServer(async (req, res) => {
         return jRes(res, 400, { erro: 'Sem lançamentos' });
       const n = db.setContasPagar(lancamentos, lojas, periodo);
       return jRes(res, 200, { ok: true, importados: n });
+    }
+
+    // ── Sugestão de Transferência ─────────────────────────────────────────
+    if (pathname === '/api/transferencia/nfs') {
+      // Lista NFs que chegaram no CD num período, agrupadas por NF
+      const dataInicio = q.data_inicio || daysAgo(7);
+      const dataFim    = q.data_fim    || today();
+      const datas      = dateRange(dataInicio, dataFim);
+      const nfsMap     = {}; // chave: numero_nf|serie|fornecedor
+      for (const dt of datas) {
+        const itens = db.getCompras(LOJA_CD, dt) || [];
+        for (const c of itens) {
+          const chave = `${c.numero_nf}|${c.serie_nf}|${c.codigo_fornecedor}`;
+          if (!nfsMap[chave]) {
+            nfsMap[chave] = {
+              numero_nf: c.numero_nf, serie_nf: c.serie_nf,
+              data_entrada: dt, data_emissao: c.data_emissao_nf,
+              codigo_fornecedor: c.codigo_fornecedor, fornecedor: c.fornecedor,
+              total_itens: 0, valor_total: 0, plus: [],
+            };
+          }
+          nfsMap[chave].total_itens++;
+          nfsMap[chave].valor_total += parseFloat(c.valor_total || 0);
+          nfsMap[chave].plus.push(c.plu);
+        }
+      }
+      const lista = Object.values(nfsMap).sort((a, b) => b.data_entrada.localeCompare(a.data_entrada));
+      return jRes(res, 200, { nfs: lista });
+    }
+
+    if (pathname === '/api/transferencia/sugestao') {
+      // Recebe numero_nf + serie_nf + codigo_fornecedor + data_entrada
+      // Retorna sugestão de transferência do CD para cada loja de venda
+      if (!q.numero_nf || !q.data_entrada) return jRes(res, 400, { erro: 'numero_nf e data_entrada obrigatórios' });
+      const jid = jId();
+      const dias  = parseInt(q.dias       || '30');
+      const dabst = parseInt(q.dias_abast || '30');
+      jobs.set(jid, { pct: 0, etapa: 'Iniciando...', done: false, erro: null, resultado: null });
+      rodarAnaliseTransferencia(jid, {
+        numero_nf:        q.numero_nf,
+        serie_nf:         q.serie_nf || '',
+        codigo_fornecedor:q.codigo_fornecedor || '',
+        data_entrada:     q.data_entrada,
+      }, dias, dabst).catch(() => {});
+      for (const [k, v] of jobs) if (v.done && k !== jid) jobs.delete(k);
+      return jRes(res, 200, { jobId: jid });
+    }
+
+    if (pathname === '/api/transferencia/progresso') {
+      const j = jobs.get(q.job);
+      if (!j) return jRes(res, 404, { erro: 'Job não encontrado' });
+      return jRes(res, 200, { pct: j.pct, etapa: j.etapa, done: j.done, erro: j.erro });
+    }
+
+    if (pathname === '/api/transferencia/resultado') {
+      const j = jobs.get(q.job);
+      if (!j) return jRes(res, 404, { erro: 'Job não encontrado' });
+      if (!j.done) return jRes(res, 202, { msg: 'Processando', pct: j.pct });
+      if (j.erro)  return jRes(res, 500, { erro: j.erro });
+      return jRes(res, 200, { dados: j.resultado });
     }
 
     jRes(res, 404, { erro: 'Rota não encontrada: ' + pathname });
