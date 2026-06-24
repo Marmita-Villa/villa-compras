@@ -326,13 +326,16 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
     const custoMap = db.getCustoMap();
     todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
 
-    // Se algum PLU analisado ainda não tem custo, busca todos os produtos sem filtro e salva
-    const plusSemCusto = plus.filter(p => !custoMap[String(p)]);
-    if (plusSemCusto.length > 0) {
-      jAtualiza(jid, 37, 'Buscando custo unitário de produtos não catalogados...');
+    // Se algum PLU analisado não tem nome ou custo (entra_rentabilidade=N), busca sem filtro
+    const plusSemDados = plus.filter(p => !prodMap[p] || !custoMap[String(p)]);
+    if (plusSemDados.length > 0) {
+      jAtualiza(jid, 37, 'Buscando dados de produtos não catalogados...');
       const todosProdsAnalise = await hGetAll(`/api/hipcom/produtos?loja=${lojaRef}`);
       db.setEmbalagemMap(todosProdsAnalise);
-      todosProdsAnalise.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
+      todosProdsAnalise.forEach(p => {
+        if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo);
+        if (!prodMap[p.plu]) prodMap[p.plu] = p; // preenche nome/NCM de produtos fora da rentabilidade
+      });
     }
 
     // Análise lê APENAS do banco local — nunca chama a Hipcom
