@@ -621,10 +621,9 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
 }
 
 // ── Análise de Transferência (CD → lojas de venda) ────────────────────────
-async function rodarAnaliseTransferencia(jid, nfRef, diasAnalise, diasAbast) {
+async function rodarAnaliseTransferencia(jid, nfRef) {
   const j = jobs.get(jid);
   try {
-    // Identifica PLUs da NF no CD
     jAtualiza(jid, 5, 'Lendo itens da NF...');
     const todasLojas = await loadLojas();
     const lojaVenda  = todasLojas.map(l => l.loja).filter(l => l !== LOJA_CD);
@@ -640,8 +639,8 @@ async function rodarAnaliseTransferencia(jid, nfRef, diasAnalise, diasAbast) {
     if (!itenNF.length) { j.done = true; j.resultado = []; return; }
 
     const plus        = [...new Set(itenNF.map(c => c.plu))];
-    const qtdNFporPlu = {}; // plu → qtd recebida na NF
-    const valNFporPlu = {}; // plu → valor recebido na NF
+    const qtdNFporPlu = {};
+    const valNFporPlu = {};
     itenNF.forEach(c => {
       qtdNFporPlu[c.plu] = parseFloat(c.quantidade_total || 0);
       valNFporPlu[c.plu] = parseFloat(c.valor_total || 0);
@@ -649,121 +648,121 @@ async function rodarAnaliseTransferencia(jid, nfRef, diasAnalise, diasAbast) {
 
     jAtualiza(jid, 10, `${plus.length} produtos na NF. Carregando dados...`);
 
-    const lojaIds = [LOJA_CD, ...lojaVenda];
+    const lojaIds   = [LOJA_CD, ...lojaVenda];
     const todosProd = await loadProdutos(lojaRef);
     const prodMap   = {};
     todosProd.forEach(p => { prodMap[p.plu] = p; });
 
-    const fiscalMap = await loadFiscalBatch(lojaRef, plus, jid, 10, 40);
+    // Preenche prodMap com produtos fora da rentabilidade via cache local
+    const embMap = db.getProdEmbMap();
+    plus.forEach(plu => {
+      if (!prodMap[plu] && embMap[String(plu)]) {
+        const e = embMap[String(plu)];
+        prodMap[plu] = { plu, descricao: e.descricao, ncm: e.ncm, departamento: e.departamento, valor_produto: e.valor_produto, custo: e.custo_unit, qtd_embalagem: e.qtd_embalagem };
+      }
+    });
 
-    const dataFim      = today();
-    const dataInicio   = daysAgo(diasAnalise);
-    const datas        = dateRange(dataInicio, dataFim);
-    const dataEstFim   = daysAgo(1);
+    // Usa todo o histórico disponível no banco (DIAS_HIST) para estimar vendas
+    const diasHist   = DIAS_HIST;
+    const dataFim    = today();
+    const dataInicio = daysAgo(diasHist);
+    const datas      = dateRange(dataInicio, dataFim);
+    const dataEstFim = daysAgo(1);
 
-    const vendasPorLoja  = {};
-    const estFimPorLoja  = {};
-    const custoMap       = db.getCustoMap();
+    const custoMap = db.getCustoMap();
     todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
 
-    const plusSemCusto = plus.filter(p => !custoMap[String(p)]);
-    if (plusSemCusto.length > 0) {
-      const todosProdsAnalise = await hGetAll(`/api/hipcom/produtos?loja=${lojaRef}`);
-      db.setEmbalagemMap(todosProdsAnalise);
-      todosProdsAnalise.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
-    }
+    jAtualiza(jid, 35, 'Lendo vendas e estoques no banco...');
+    const vendasPorLoja = {};
+    const estPorLoja    = {};
 
-    jAtualiza(jid, 45, 'Lendo vendas e estoques por loja...');
     for (const lid of lojaIds) {
       vendasPorLoja[lid] = {};
-      estFimPorLoja[lid] = {};
+      estPorLoja[lid]    = {};
 
+      // Vendas: todo o histórico no banco
       for (const dt of datas) {
         (db.getVendas(lid, dt) || []).forEach(item => {
           if (!plus.includes(item.plu)) return;
-          const qtd    = parseFloat(item.quantidade_total || 0);
-          const cScan  = parseFloat(item.custo || 0);
-          const cUnit  = custoMap[String(item.plu)] || cScan;
-          const emb    = cScan > 0 && cUnit > 0 && cScan > cUnit ? Math.round(cScan / cUnit) : 1;
-          const qtdU   = qtd * Math.max(1, emb);
-          if (!vendasPorLoja[lid][item.plu]) vendasPorLoja[lid][item.plu] = { total: 0, dias: 0 };
-          vendasPorLoja[lid][item.plu].total += qtdU;
-          if (qtd > 0) vendasPorLoja[lid][item.plu].dias++;
+          const qtd   = parseFloat(item.quantidade_total || 0);
+          const cScan = parseFloat(item.custo || 0);
+          const cUnit = custoMap[String(item.plu)] || cScan;
+          const emb   = cScan > 0 && cUnit > 0 && cScan > cUnit ? Math.round(cScan / cUnit) : 1;
+          if (!vendasPorLoja[lid][item.plu]) vendasPorLoja[lid][item.plu] = 0;
+          vendasPorLoja[lid][item.plu] += qtd * Math.max(1, emb);
         });
       }
 
-      const estSnaps = db.getEstoque(lid, dataEstFim) || [];
-      estSnaps.forEach(e => { estFimPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
+      // Estoque atual
+      const snaps = db.getEstoque(lid, dataEstFim) || [];
+      snaps.forEach(e => { estPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
     }
 
-    // Estoque atual em tempo real para lojaRef
-    todosProd.forEach(p => {
-      if (estFimPorLoja[lojaRef] !== undefined)
-        estFimPorLoja[lojaRef][p.plu] = parseFloat(p.qtd_estoque_atual || 0);
-    });
+    // Estoque em tempo real da lojaRef
+    todosProd.forEach(p => { estPorLoja[lojaRef][p.plu] = parseFloat(p.qtd_estoque_atual || 0); });
 
-    jAtualiza(jid, 75, 'Calculando sugestões de transferência...');
+    jAtualiza(jid, 75, 'Calculando distribuição...');
 
     const resultado = plus.map(plu => {
-      const prod   = prodMap[plu] || {};
-      const custo  = parseFloat(prod.custo || 0);
-      const preco  = parseFloat(prod.valor_produto || 0);
-      const qtdEmb = parseFloat(prod.qtd_embalagem || 1) || 1;
-      const ncmStr = String(prod.ncm || '').replace(/\D/g, '').padStart(8, '0');
-      const ncmInfo= getNcmInfo(ncmStr);
-      const fRaw   = fiscalMap[plu];
-      const ca     = calcLucroReal(custo, preco, fRaw, ncmInfo);
+      const prod    = prodMap[plu] || {};
+      const custo   = parseFloat(prod.custo || 0);
+      const preco   = parseFloat(prod.valor_produto || 0);
+      const qtdEmb  = parseFloat(prod.qtd_embalagem || 1) || 1;
 
       const qtdRecebidaCD = qtdNFporPlu[plu] || 0;
       const custoUnitNF   = qtdRecebidaCD > 0 ? (valNFporPlu[plu] || 0) / qtdRecebidaCD : custo;
+      const estCD         = estPorLoja[LOJA_CD]?.[plu] || 0;
 
-      // Estoque atual no CD (após receber a NF)
-      const estCD = estFimPorLoja[LOJA_CD]?.[plu] || 0;
+      // Vendas históricas por loja de venda (período completo do banco)
+      const porLoja = lojaVenda.map(lid => ({
+        loja:        lid,
+        estoque:     +(estPorLoja[lid]?.[plu] || 0).toFixed(3),
+        venda_total: +(vendasPorLoja[lid]?.[plu] || 0).toFixed(3),
+      }));
 
-      // Por loja de venda: necessidade e sugestão de transferência
-      const porLoja = lojaVenda.map(lid => {
-        const v   = vendasPorLoja[lid]?.[plu] || { total: 0, dias: 0 };
-        const est = lid === lojaRef
-          ? parseFloat(prod.qtd_estoque_atual || estFimPorLoja[lid]?.[plu] || 0)
-          : (estFimPorLoja[lid]?.[plu] || 0);
-        const vmd    = diasAnalise > 0 ? v.total / diasAnalise : 0;
-        const nec    = vmd * diasAbast;
-        const falta  = Math.max(0, nec - est);
-        // Sugestão: o que falta, arredondado para embalagem, limitado ao disponível no CD
-        const sugestao = Math.ceil(falta / qtdEmb) * qtdEmb;
-        return {
-          loja: lid, estoque: +est.toFixed(3),
-          venda_total: +v.total.toFixed(3),
-          venda_media_dia: +vmd.toFixed(3),
-          necessidade: +nec.toFixed(3),
-          falta: +falta.toFixed(3),
-          sugestao_transferencia: sugestao,
-        };
+      // Distribuição proporcional à venda, com prioridade para estoque zero
+      // 1. Calcula peso de cada loja (vendas históricas; mínimo 1 se zerado para não excluir)
+      const totalVendas = porLoja.reduce((s, l) => s + l.venda_total, 0);
+      const pesos = porLoja.map(l => totalVendas > 0 ? l.venda_total / totalVendas : 1 / porLoja.length);
+
+      // 2. Quantidade disponível para distribuir = estoque do CD
+      let disponivel = Math.floor(estCD / qtdEmb) * qtdEmb;
+
+      // 3. Calcula sugestão proporcional
+      const transfs = [];
+      porLoja.forEach((l, i) => {
+        const bruto = disponivel * pesos[i];
+        // Arredonda para baixo em embalagem (exceto se for a última loja, recebe o restante)
+        const qtdTransf = Math.floor(bruto / qtdEmb) * qtdEmb;
+        transfs.push({ para_loja: l.loja, qtd: qtdTransf, estoque_loja: l.estoque, venda_total: l.venda_total, peso_pct: +(pesos[i] * 100).toFixed(1) });
       });
 
-      // Total a transferir (limitado ao disponível no CD)
-      let disponivel = estCD;
-      const transfs = [];
-      for (const l of porLoja) {
-        if (l.sugestao_transferencia <= 0) continue;
-        const qtdTransf = Math.min(l.sugestao_transferencia, Math.floor(disponivel / qtdEmb) * qtdEmb);
-        if (qtdTransf > 0) {
-          transfs.push({ para_loja: l.loja, qtd: qtdTransf });
-          disponivel -= qtdTransf;
-        }
+      // 4. Distribui sobra de arredondamento para a loja com maior venda que ainda tem "crédito"
+      const totalTransfCalc = transfs.reduce((s, t) => s + t.qtd, 0);
+      let sobra = disponivel - totalTransfCalc;
+      if (sobra >= qtdEmb) {
+        const iMax = transfs.reduce((best, t, i) => t.peso_pct > transfs[best].peso_pct ? i : best, 0);
+        transfs[iMax].qtd += Math.floor(sobra / qtdEmb) * qtdEmb;
       }
-      const totalTransf = transfs.reduce((s, t) => s + t.qtd, 0);
+
+      // 5. Lojas com estoque zero têm garantia de pelo menos 1 embalagem se houver disponível
+      let dispExtra = disponivel;
+      for (const t of transfs) {
+        if (t.estoque_loja === 0 && t.qtd === 0 && dispExtra >= qtdEmb) {
+          t.qtd = qtdEmb; dispExtra -= qtdEmb;
+        }
+        dispExtra -= t.qtd;
+      }
+
+      const totalTransf = transfs.filter(t => t.qtd > 0).reduce((s, t) => s + t.qtd, 0);
       const sobraCD     = estCD - totalTransf;
 
-      let status = 'OK';
-      if (custo === 0)                                    status = 'SEM CUSTO';
-      else if (porLoja.every(l => l.venda_media_dia === 0)) status = 'SEM GIRO';
-      else if (totalTransf === 0 && estCD === 0)          status = 'SEM ESTOQUE CD';
-      else if (totalTransf === 0)                         status = 'ESTOQUE OK';
+      const status = estCD === 0 ? 'SEM ESTOQUE CD'
+                   : totalTransf === 0 ? 'CD OK — SEM DEMANDA'
+                   : 'TRANSFERIR';
 
       return {
         plu, nome: prod.descricao || '',
-        ncm: ncmStr !== '00000000' ? ncmStr : 'N/D',
         departamento: prod.departamento || '',
         qtd_embalagem: qtdEmb,
         qtd_recebida_cd: +qtdRecebidaCD.toFixed(3),
@@ -772,20 +771,16 @@ async function rodarAnaliseTransferencia(jid, nfRef, diasAnalise, diasAbast) {
         estoque_cd: +estCD.toFixed(3),
         saldo_cd_apos_transf: +sobraCD.toFixed(3),
         total_a_transferir: +totalTransf.toFixed(3),
+        dias_historico: diasHist,
         status,
-        transferencias: transfs,
+        transferencias: transfs.filter(t => t.qtd > 0),
         por_loja: porLoja,
-        fiscal: { custo_hipcom: +custo.toFixed(4), preco_venda: +preco.toFixed(4), cenario_atual: ca },
       };
     });
 
     resultado.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
     jAtualiza(jid, 100, `Concluído — ${resultado.length} produtos`);
-    j.resultado = {
-      nf: nfRef, lojas_venda: lojaVenda, loja_cd: LOJA_CD,
-      dias_analise: diasAnalise, dias_abast: diasAbast,
-      produtos: resultado,
-    };
+    j.resultado = { nf: nfRef, lojas_venda: lojaVenda, loja_cd: LOJA_CD, produtos: resultado };
     j.done = true;
 
   } catch (err) {
@@ -1264,15 +1259,13 @@ const server = http.createServer(async (req, res) => {
       // Retorna sugestão de transferência do CD para cada loja de venda
       if (!q.numero_nf || !q.data_entrada) return jRes(res, 400, { erro: 'numero_nf e data_entrada obrigatórios' });
       const jid = jId();
-      const dias  = parseInt(q.dias       || '30');
-      const dabst = parseInt(q.dias_abast || '30');
       jobs.set(jid, { pct: 0, etapa: 'Iniciando...', done: false, erro: null, resultado: null });
       rodarAnaliseTransferencia(jid, {
-        numero_nf:        q.numero_nf,
-        serie_nf:         q.serie_nf || '',
-        codigo_fornecedor:q.codigo_fornecedor || '',
-        data_entrada:     q.data_entrada,
-      }, dias, dabst).catch(() => {});
+        numero_nf:         q.numero_nf,
+        serie_nf:          q.serie_nf || '',
+        codigo_fornecedor: q.codigo_fornecedor || '',
+        data_entrada:      q.data_entrada,
+      }).catch(() => {});
       for (const [k, v] of jobs) if (v.done && k !== jid) jobs.delete(k);
       return jRes(res, 200, { jobId: jid });
     }

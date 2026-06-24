@@ -779,14 +779,6 @@
           Data fim
           <input type="date" id="transf-data-fim" style="padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
         </label>
-        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
-          Dias de análise de venda
-          <input type="number" id="transf-dias" value="30" min="7" max="180" style="width:130px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
-        </label>
-        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
-          Dias de abastecimento
-          <input type="number" id="transf-abast" value="30" min="1" max="90" style="width:130px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
-        </label>
         <button class="btn-primary" onclick="transfBuscarNFs()" style="padding:8px 20px;font-size:13px">🔍 Buscar NFs</button>
       </div>
     </div>
@@ -1775,9 +1767,6 @@ async function transfBuscarNFs() {
 }
 
 async function transfAnalisarNF(nf) {
-  const dias  = parseInt(document.getElementById('transf-dias').value)  || 30;
-  const abast = parseInt(document.getElementById('transf-abast').value) || 30;
-
   document.getElementById('transf-resultado-wrap').style.display = 'block';
   document.getElementById('transf-nf-titulo').textContent = `NF ${nf.numero_nf} — ${nf.fornecedor}`;
   document.getElementById('transf-progress').textContent  = 'Analisando...';
@@ -1789,7 +1778,6 @@ async function transfAnalisarNF(nf) {
     numero_nf: nf.numero_nf, serie_nf: nf.serie_nf,
     codigo_fornecedor: nf.codigo_fornecedor,
     data_entrada: nf.data_entrada,
-    dias, dias_abast: abast,
   });
   const r = await fetch(`${API}/api/transferencia/sugestao?${params}`);
   const { jobId } = await r.json();
@@ -1814,47 +1802,54 @@ function transfRenderizar(dados) {
   document.getElementById('transf-progress').textContent = `Concluído — ${dados.produtos.length} produtos`;
   const lojas = dados.lojas_venda;
 
-  // Cabeçalho dinâmico das lojas
-  const thLojas = document.getElementById('transf-th-lojas');
-  thLojas.outerHTML = lojas.map(l =>
-    `<th style="text-align:right" id="transf-th-l${l}">→ Loja ${l}<br><span style="font-size:10px;font-weight:400">Sugere</span></th>`
+  // Cabeçalho dinâmico das lojas (estoque + transferência sugerida)
+  const thEl = document.getElementById('transf-th-lojas');
+  thEl.outerHTML = lojas.map(l =>
+    `<th style="text-align:right" id="transf-th-l${l}">Loja ${l}<br><span style="font-size:10px;font-weight:400;color:var(--muted)">Est / Venda / Transf.</span></th>`
   ).join('');
 
   // Cards resumo
   const comTransf  = dados.produtos.filter(p => p.total_a_transferir > 0);
   const semEstoque = dados.produtos.filter(p => p.status === 'SEM ESTOQUE CD');
-  const semGiro    = dados.produtos.filter(p => p.status === 'SEM GIRO');
-  const valorTransf= comTransf.reduce((s, p) => s + p.total_a_transferir * p.fiscal.custo_hipcom, 0);
+  const valorTransf = comTransf.reduce((s, p) => s + p.total_a_transferir * p.custo_unit_nf, 0);
+  const diasHist   = dados.produtos[0]?.dias_historico || 90;
 
   document.getElementById('transf-cards').innerHTML = [
-    { label: 'Produtos na NF', val: dados.produtos.length, cor: 'var(--text)' },
-    { label: 'Com transferência sugerida', val: comTransf.length, cor: 'var(--ok)' },
-    { label: 'Valor estimado (custo)', val: 'R$ ' + R(valorTransf), cor: 'var(--accent2)' },
-    { label: 'CD sem estoque', val: semEstoque.length, cor: semEstoque.length ? 'var(--warn)' : 'var(--muted)' },
-    { label: 'Sem giro nas lojas', val: semGiro.length, cor: 'var(--muted)' },
+    { label: 'Produtos na NF',            val: dados.produtos.length,  cor: 'var(--text)' },
+    { label: 'Com transferência sugerida',val: comTransf.length,       cor: 'var(--ok)' },
+    { label: 'Valor estimado (custo NF)', val: 'R$ ' + R(valorTransf), cor: 'var(--accent2)' },
+    { label: 'CD sem estoque',            val: semEstoque.length,      cor: semEstoque.length ? '#f87171' : 'var(--muted)' },
+    { label: `Histórico de vendas`,       val: `${diasHist} dias`,     cor: 'var(--muted)' },
   ].map(c => `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:140px">
     <div style="font-size:11px;color:var(--muted)">${c.label}</div>
-    <div style="font-size:20px;font-weight:700;color:${c.cor};margin-top:2px">${c.val}</div>
+    <div style="font-size:18px;font-weight:700;color:${c.cor};margin-top:2px">${c.val}</div>
   </div>`).join('');
 
-  // Tabela
-  const statusCor = { 'OK': 'var(--ok)', 'SEM GIRO': 'var(--muted)', 'SEM ESTOQUE CD': '#f87171',
-                       'ESTOQUE OK': 'var(--info)', 'SEM CUSTO': 'var(--warn)' };
+  const statusCor = {
+    'TRANSFERIR':        'var(--ok)',
+    'SEM ESTOQUE CD':   '#f87171',
+    'CD OK — SEM DEMANDA': 'var(--muted)',
+  };
 
   const rows = dados.produtos.map(p => {
     const lojaCols = lojas.map(lid => {
       const lj = p.por_loja.find(l => l.loja === lid);
-      const sug = lj ? lj.sugestao_transferencia : 0;
-      const tf  = p.transferencias.find(t => t.para_loja === lid);
+      const tf = p.transferencias.find(t => t.para_loja === lid);
+      const est   = lj ? lj.estoque : '—';
+      const venda = lj ? lj.venda_total : '—';
       const qtdTf = tf ? tf.qtd : 0;
-      const cor = qtdTf > 0 ? 'color:var(--ok);font-weight:700' : 'color:var(--muted)';
-      const title = lj ? `Est: ${lj.estoque} | VMD: ${lj.venda_media_dia}/dia | Nec: ${lj.necessidade}` : '';
-      return `<td style="text-align:right;${cor}" title="${title}">${qtdTf > 0 ? qtdTf : (sug > 0 ? `(${sug})` : '—')}</td>`;
+      const tfStr = qtdTf > 0 ? `<span style="color:var(--ok);font-weight:700">→ ${qtdTf}</span>` : '<span style="color:var(--muted)">—</span>';
+      const pct   = tf ? ` <span style="font-size:10px;color:var(--muted)">(${tf.peso_pct}%)</span>` : '';
+      const title = lj ? `Est: ${est} | Venda ${p.dias_historico}d: ${venda}` : '';
+      return `<td style="text-align:right;font-size:12px;line-height:1.6" title="${title}">
+        <div style="color:var(--muted);font-size:11px">${est} / ${venda}</div>
+        <div>${tfStr}${pct}</div>
+      </td>`;
     }).join('');
 
     const statusStyle = `color:${statusCor[p.status] || 'var(--text)'};font-size:11px;font-weight:600`;
     return `<tr>
-      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${p.nome}">${p.nome}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${p.nome}">${p.nome || '<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted)">${p.plu}</td>
       <td style="color:var(--muted);font-size:11px">${p.departamento}</td>
       <td style="text-align:right">${p.qtd_recebida_cd}</td>
