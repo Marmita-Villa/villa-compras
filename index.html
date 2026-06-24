@@ -275,6 +275,7 @@
     <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
     <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
     <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')" style="display:none">📊 Análise de Margem</button>
+    <button class="tab-nav" id="tab-transf-btn" onclick="switchTab('transf')">🔄 Transferência CD</button>
   </div>
 
   <!-- Seção: Análise de Compras -->
@@ -759,6 +760,72 @@
     </div>
 
   </div><!-- /section-margem -->
+
+  <!-- ── Seção: Transferência CD → Lojas ───────────────────────────────── -->
+  <div id="section-transf" style="display:none">
+
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">🔄 Sugestão de Transferência — NFs recebidas no CD</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+          Data início
+          <input type="date" id="transf-data-ini" style="padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
+        </label>
+        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+          Data fim
+          <input type="date" id="transf-data-fim" style="padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
+        </label>
+        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+          Dias de análise de venda
+          <input type="number" id="transf-dias" value="30" min="7" max="180" style="width:130px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
+        </label>
+        <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+          Dias de abastecimento
+          <input type="number" id="transf-abast" value="30" min="1" max="90" style="width:130px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
+        </label>
+        <button class="btn-primary" onclick="transfBuscarNFs()" style="padding:8px 20px;font-size:13px">🔍 Buscar NFs</button>
+      </div>
+    </div>
+
+    <!-- Lista de NFs -->
+    <div id="transf-nfs-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">NFs recebidas no CD</div>
+      <div id="transf-nfs-lista" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <!-- Resultado da sugestão -->
+    <div id="transf-resultado-wrap" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+        <div id="transf-nf-titulo" style="font-size:14px;font-weight:700;color:var(--text)"></div>
+        <div id="transf-progress" style="font-size:12px;color:var(--muted)"></div>
+        <button class="btn-sec" onclick="transfExportarCSV()" style="margin-left:auto;font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      </div>
+
+      <!-- Resumo cards -->
+      <div id="transf-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+      <!-- Tabela -->
+      <div style="overflow-x:auto">
+        <table class="tbl" id="transf-tabela" style="font-size:12px;min-width:900px">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>PLU</th>
+              <th>Depto</th>
+              <th style="text-align:right">Qtd NF</th>
+              <th style="text-align:right">Est. CD</th>
+              <th id="transf-th-lojas"></th><!-- colunas dinâmicas por loja -->
+              <th style="text-align:right">Total Transf.</th>
+              <th style="text-align:right">Saldo CD</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="transf-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /section-transf -->
 
 </main>
 
@@ -1637,12 +1704,183 @@ function switchTab(tab) {
   document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
   document.getElementById('section-pedido').style.display  = tab === 'pedido'  ? '' : 'none';
   document.getElementById('section-margem').style.display  = tab === 'margem'  ? '' : 'none';
+  document.getElementById('section-transf').style.display  = tab === 'transf'  ? '' : 'none';
   document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
   document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
   document.getElementById('tab-pedido-btn').classList.toggle('active',  tab === 'pedido');
   document.getElementById('tab-margem-btn').classList.toggle('active',  tab === 'margem');
+  document.getElementById('tab-transf-btn').classList.toggle('active',  tab === 'transf');
   if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
   if (tab === 'pedido') { pedidoCarregarHistorico(); }
+  if (tab === 'transf') { transfInicializar(); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SUGESTÃO DE TRANSFERÊNCIA CD → LOJAS
+
+let transfJobTimer = null;
+let transfDadosAtivos = null;
+
+function transfInicializar() {
+  const hoje = new Date();
+  const fmt  = d => d.toISOString().slice(0, 10);
+  const ini  = new Date(hoje); ini.setDate(hoje.getDate() - 7);
+  const fimEl = document.getElementById('transf-data-fim');
+  const iniEl = document.getElementById('transf-data-ini');
+  if (!fimEl.value) fimEl.value = fmt(hoje);
+  if (!iniEl.value) iniEl.value = fmt(ini);
+}
+
+async function transfBuscarNFs() {
+  const ini   = document.getElementById('transf-data-ini').value;
+  const fim   = document.getElementById('transf-data-fim').value;
+  if (!ini || !fim) return alert('Informe o período.');
+
+  document.getElementById('transf-nfs-wrap').style.display     = 'none';
+  document.getElementById('transf-resultado-wrap').style.display = 'none';
+
+  const r = await fetch(`${API}/api/transferencia/nfs?data_inicio=${ini}&data_fim=${fim}`);
+  const { nfs } = await r.json();
+
+  if (!nfs || !nfs.length) {
+    document.getElementById('transf-nfs-wrap').style.display = 'block';
+    document.getElementById('transf-nfs-lista').innerHTML =
+      '<div style="color:var(--muted);font-size:12px;padding:12px">Nenhuma NF encontrada no período. Sincronize o banco primeiro.</div>';
+    return;
+  }
+
+  const lista = document.getElementById('transf-nfs-lista');
+  lista.innerHTML = nfs.map(nf => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s"
+         onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+         onclick="transfAnalisarNF(${JSON.stringify(nf).replace(/"/g,'&quot;')})">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nf.fornecedor}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">NF ${nf.numero_nf} · Série ${nf.serie_nf} · Emissão ${nf.data_emissao || '-'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;color:var(--text)">Entrada: <strong>${nf.data_entrada}</strong></div>
+        <div style="font-size:11px;color:var(--muted)">${nf.total_itens} itens · R$ ${R(nf.valor_total)}</div>
+      </div>
+      <div style="color:var(--accent);font-size:18px">›</div>
+    </div>`).join('');
+
+  document.getElementById('transf-nfs-wrap').style.display = 'block';
+}
+
+async function transfAnalisarNF(nf) {
+  const dias  = parseInt(document.getElementById('transf-dias').value)  || 30;
+  const abast = parseInt(document.getElementById('transf-abast').value) || 30;
+
+  document.getElementById('transf-resultado-wrap').style.display = 'block';
+  document.getElementById('transf-nf-titulo').textContent = `NF ${nf.numero_nf} — ${nf.fornecedor}`;
+  document.getElementById('transf-progress').textContent  = 'Analisando...';
+  document.getElementById('transf-cards').innerHTML  = '';
+  document.getElementById('transf-tbody').innerHTML  = '<tr><td colspan="20" style="text-align:center;padding:20px;color:var(--muted)">Calculando sugestões...</td></tr>';
+  document.getElementById('transf-resultado-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const params = new URLSearchParams({
+    numero_nf: nf.numero_nf, serie_nf: nf.serie_nf,
+    codigo_fornecedor: nf.codigo_fornecedor,
+    data_entrada: nf.data_entrada,
+    dias, dias_abast: abast,
+  });
+  const r = await fetch(`${API}/api/transferencia/sugestao?${params}`);
+  const { jobId } = await r.json();
+  if (transfJobTimer) clearInterval(transfJobTimer);
+  transfJobTimer = setInterval(() => transfPollJob(jobId), 1000);
+}
+
+async function transfPollJob(jobId) {
+  const r = await fetch(`${API}/api/transferencia/progresso?job=${jobId}`);
+  const p = await r.json();
+  document.getElementById('transf-progress').textContent = `${p.pct}% — ${p.etapa}`;
+  if (!p.done) return;
+  clearInterval(transfJobTimer);
+  if (p.erro) { document.getElementById('transf-tbody').innerHTML = `<tr><td colspan="20" style="color:#f87171;padding:16px">${p.erro}</td></tr>`; return; }
+  const res = await fetch(`${API}/api/transferencia/resultado?job=${jobId}`);
+  const { dados } = await res.json();
+  transfDadosAtivos = dados;
+  transfRenderizar(dados);
+}
+
+function transfRenderizar(dados) {
+  document.getElementById('transf-progress').textContent = `Concluído — ${dados.produtos.length} produtos`;
+  const lojas = dados.lojas_venda;
+
+  // Cabeçalho dinâmico das lojas
+  const thLojas = document.getElementById('transf-th-lojas');
+  thLojas.outerHTML = lojas.map(l =>
+    `<th style="text-align:right" id="transf-th-l${l}">→ Loja ${l}<br><span style="font-size:10px;font-weight:400">Sugere</span></th>`
+  ).join('');
+
+  // Cards resumo
+  const comTransf  = dados.produtos.filter(p => p.total_a_transferir > 0);
+  const semEstoque = dados.produtos.filter(p => p.status === 'SEM ESTOQUE CD');
+  const semGiro    = dados.produtos.filter(p => p.status === 'SEM GIRO');
+  const valorTransf= comTransf.reduce((s, p) => s + p.total_a_transferir * p.fiscal.custo_hipcom, 0);
+
+  document.getElementById('transf-cards').innerHTML = [
+    { label: 'Produtos na NF', val: dados.produtos.length, cor: 'var(--text)' },
+    { label: 'Com transferência sugerida', val: comTransf.length, cor: 'var(--ok)' },
+    { label: 'Valor estimado (custo)', val: 'R$ ' + R(valorTransf), cor: 'var(--accent2)' },
+    { label: 'CD sem estoque', val: semEstoque.length, cor: semEstoque.length ? 'var(--warn)' : 'var(--muted)' },
+    { label: 'Sem giro nas lojas', val: semGiro.length, cor: 'var(--muted)' },
+  ].map(c => `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:140px">
+    <div style="font-size:11px;color:var(--muted)">${c.label}</div>
+    <div style="font-size:20px;font-weight:700;color:${c.cor};margin-top:2px">${c.val}</div>
+  </div>`).join('');
+
+  // Tabela
+  const statusCor = { 'OK': 'var(--ok)', 'SEM GIRO': 'var(--muted)', 'SEM ESTOQUE CD': '#f87171',
+                       'ESTOQUE OK': 'var(--info)', 'SEM CUSTO': 'var(--warn)' };
+
+  const rows = dados.produtos.map(p => {
+    const lojaCols = lojas.map(lid => {
+      const lj = p.por_loja.find(l => l.loja === lid);
+      const sug = lj ? lj.sugestao_transferencia : 0;
+      const tf  = p.transferencias.find(t => t.para_loja === lid);
+      const qtdTf = tf ? tf.qtd : 0;
+      const cor = qtdTf > 0 ? 'color:var(--ok);font-weight:700' : 'color:var(--muted)';
+      const title = lj ? `Est: ${lj.estoque} | VMD: ${lj.venda_media_dia}/dia | Nec: ${lj.necessidade}` : '';
+      return `<td style="text-align:right;${cor}" title="${title}">${qtdTf > 0 ? qtdTf : (sug > 0 ? `(${sug})` : '—')}</td>`;
+    }).join('');
+
+    const statusStyle = `color:${statusCor[p.status] || 'var(--text)'};font-size:11px;font-weight:600`;
+    return `<tr>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${p.nome}">${p.nome}</td>
+      <td style="color:var(--muted)">${p.plu}</td>
+      <td style="color:var(--muted);font-size:11px">${p.departamento}</td>
+      <td style="text-align:right">${p.qtd_recebida_cd}</td>
+      <td style="text-align:right;color:${p.estoque_cd > 0 ? 'var(--text)' : '#f87171'}">${p.estoque_cd}</td>
+      ${lojaCols}
+      <td style="text-align:right;font-weight:700;color:${p.total_a_transferir > 0 ? 'var(--ok)' : 'var(--muted)'}">${p.total_a_transferir || '—'}</td>
+      <td style="text-align:right;color:${p.saldo_cd_apos_transf > 0 ? 'var(--text)' : 'var(--muted)'}">${p.saldo_cd_apos_transf}</td>
+      <td style="${statusStyle}">${p.status}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('transf-tbody').innerHTML = rows || '<tr><td colspan="20" style="text-align:center;padding:20px;color:var(--muted)">Nenhum produto encontrado</td></tr>';
+}
+
+function transfExportarCSV() {
+  if (!transfDadosAtivos) return;
+  const d = transfDadosAtivos;
+  const lojas = d.lojas_venda;
+  const header = ['PLU','Produto','Depto','Qtd NF','Est. CD',
+    ...lojas.map(l => `Transf. Loja ${l}`),
+    'Total Transf.','Saldo CD','Status'];
+  const rows = d.produtos.map(p => [
+    p.plu, `"${p.nome}"`, `"${p.departamento}"`,
+    p.qtd_recebida_cd, p.estoque_cd,
+    ...lojas.map(lid => { const t = p.transferencias.find(t => t.para_loja === lid); return t ? t.qtd : 0; }),
+    p.total_a_transferir, p.saldo_cd_apos_transf, p.status,
+  ]);
+  const csv = [header, ...rows].map(r => r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
+  a.download = `transferencia_NF${d.nf.numero_nf}_${d.nf.data_entrada}.csv`;
+  a.click();
 }
 
 // ══════════════════════════════════════════════════════════
