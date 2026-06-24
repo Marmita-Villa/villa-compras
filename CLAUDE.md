@@ -68,10 +68,24 @@ Sessões via cookie `sess` (HttpOnly, 8h). Tabela `sessoes` no SQLite. Rotas pú
 ### Cálculo fiscal (`calcLucroReal` em `proxy.js`)
 
 Recebe custo, preço e dados fiscais da Hipcom. Aplica créditos de entrada (ICMS, PIS, COFINS) e débitos de saída para chegar ao custo real e margem líquida. Cruza com `ncm_fiscal.json` para detectar:
-- ST removida → gera `cenario_anterior` com custo estimado pré-remoção e calcula ST retida pelo fornecedor
+- ST removida → gera `cenario_anterior` com custo estimado pré-remoção e calcula ST retida pelo fornecedor usando `custo_NF / (1 - alq_entrada)` (ICMS por dentro)
 - PIS/COFINS monofásico ou isento
 - Divergência de CST vs NCM
 - Projeções da reforma tributária por ano (2025-2033)
+
+### Conversão de embalagem nas vendas
+
+A API Hipcom retorna `qtd_embalagem=1` para todos os produtos. Para converter "scans de caixa" em unidades individuais, o sistema usa dois mecanismos:
+1. `custoMap` (tabela `prod_emb`): custo unitário do cadastro de produtos. Se `custo_scan / custo_unit > 1`, o fator é o número de unidades por embalagem.
+2. Se o PLU não estiver em `custoMap`, busca produtos sem filtro de rentabilidade via Hipcom na análise (on-demand, com cache).
+
+Produtos com `entra_rentabilidade=N` não aparecem no endpoint padrão de produtos — são buscados sem filtro durante a análise quando necessário.
+
+### Estoque
+
+- Hipcom não expõe estoque do dia atual até fechamento → análise usa `daysAgo(1)` como data fim
+- `lojaRef` (primeira loja de `lojaIds`) usa `prod.qtd_estoque_atual` (tempo real) em vez do snapshot
+- `getEstoqueExato` (sem fallback) usado no sync; `getEstoque` (com fallback para snapshot mais recente não-vazio) usado na análise
 
 ### Aba Pedidos
 
