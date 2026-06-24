@@ -272,7 +272,7 @@ async function rodarSync(jid, lojaId, diasHist) {
 }
 
 // ── Análise multi-loja (background) ───────────────────────────────────────
-async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
+async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, todosForn = false) {
   const j = jobs.get(jid);
   try {
     const lojaIds  = Array.isArray(lojas) ? lojas : [parseInt(lojas)];
@@ -306,6 +306,19 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
         });
       }
     }
+    // Se solicitado, inclui também PLUs do catálogo do fornecedor (fora do período)
+    const plusForaPeriodo = new Set();
+    if (todosForn) {
+      jAtualiza(jid, 6, 'Buscando catálogo completo do fornecedor...');
+      const fp = await hGetAll(`/api/hipcom/fornecedoresprodutos?loja=${lojaRef}`);
+      fp.forEach(r => {
+        if (String(r.fornecedor) === String(fornecedorId) && !plusSet.has(r.plu)) {
+          plusSet.add(r.plu);
+          plusForaPeriodo.add(r.plu);
+        }
+      });
+    }
+
     const plus = [...plusSet];
     if (!plus.length) { j.done = true; j.resultado = []; return; }
     j.totalProdutos = plus.length;
@@ -504,8 +517,10 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast) {
       const caCmv = custoMedioPonderado ? calcLucroReal(custoMedioPonderado, preco, fRaw, ncmInfo) : null;
 
       const ml = ca.margem_liquida;
+      const foraPeriodo = plusForaPeriodo.has(plu);
       let status = 'OK';
-      if      (custo === 0)                           status = 'SEM CUSTO';
+      if      (foraPeriodo)                           status = 'FORA DO PERÍODO';
+      else if (custo === 0)                           status = 'SEM CUSTO';
       else if (vendaMediaDia === 0 && estAtual === 0) status = 'INATIVO';
       else if (vendaMediaDia === 0)                   status = 'SEM GIRO';
       else if (qtdFinal === 0)                        status = 'ESTOQUE OK';
@@ -1021,8 +1036,9 @@ const server = http.createServer(async (req, res) => {
       const lojas = q.lojas
         ? q.lojas.split(',').map(Number).filter(n => n > 0)
         : [parseInt(q.loja || '1')];
+      const todosForn = q.todos === '1';
       jobs.set(jid, { pct:0, etapa:'Iniciando...', done:false, erro:null, resultado:null });
-      rodarAnalise(jid, lojas, q.id, dias, dabst).catch(() => {});
+      rodarAnalise(jid, lojas, q.id, dias, dabst, todosForn).catch(() => {});
       for (const [k, v] of jobs) if (v.done && k !== jid) jobs.delete(k);
       return jRes(res, 200, { jobId: jid });
     }
