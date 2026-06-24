@@ -302,11 +302,16 @@ function getStats() {
   const fiscal   = db.prepare('SELECT COUNT(*) as n FROM fiscal').get().n;
   const produtos = db.prepare('SELECT loja FROM produtos').all().map(r => r.loja);
 
+  // Compras por loja: data mínima, máxima e total de datas
+  const comprasStats = db.prepare(
+    'SELECT loja, MIN(data) as min_d, MAX(data) as max_d, COUNT(*) as dias FROM compras GROUP BY loja ORDER BY loja'
+  ).all();
+
   let diasHistorico = 0;
   if (minVenda && maxVenda) {
     diasHistorico = Math.round((new Date(maxVenda) - new Date(minVenda)) / 86400000) + 1;
   }
-  return { diasVendas, diasHistorico, fiscal, produtos, minVenda, maxVenda };
+  return { diasVendas, diasHistorico, fiscal, produtos, minVenda, maxVenda, comprasStats };
 }
 
 // ── Usuários e Sessões ────────────────────────────────────────────────────
