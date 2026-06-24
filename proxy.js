@@ -309,8 +309,8 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
     // Se solicitado, inclui também PLUs do catálogo do fornecedor (fora do período)
     const plusForaPeriodo = new Set();
     if (todosForn) {
-      jAtualiza(jid, 6, 'Buscando catálogo completo do fornecedor...');
-      const fp = await hGetAll(`/api/hipcom/fornecedoresprodutos?loja=${lojaRef}`);
+      jAtualiza(jid, 6, 'Buscando catálogo completo do fornecedor no banco...');
+      const fp = db.getFP(lojaRef) || [];
       fp.forEach(r => {
         if (String(r.fornecedor) === String(fornecedorId) && !plusSet.has(r.plu)) {
           plusSet.add(r.plu);
