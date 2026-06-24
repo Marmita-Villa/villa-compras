@@ -1227,6 +1227,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── Sugestão de Transferência ─────────────────────────────────────────
+    if (pathname === '/api/transferencia/debug') {
+      // Diagnóstico: mostra os primeiros itens de compras do CD numa data
+      const dt = q.data || daysAgo(1);
+      const itens = db.getCompras(LOJA_CD, dt) || [];
+      return jRes(res, 200, {
+        loja_cd: LOJA_CD, data: dt,
+        total_itens: itens.length,
+        amostra: itens.slice(0, 3),
+        campos: itens[0] ? Object.keys(itens[0]) : [],
+      });
+    }
+
     if (pathname === '/api/transferencia/nfs') {
       // Lista NFs que chegaram no CD num período, agrupadas por NF
       const dataInicio = q.data_inicio || daysAgo(7);
