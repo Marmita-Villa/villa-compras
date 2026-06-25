@@ -316,6 +316,40 @@
     </div>
   </div>
 
+  <!-- Alertas de Reajuste de Custo -->
+  <div id="reajuste-painel" style="display:none;background:var(--card2);border:1px solid #fb923c;border-radius:10px;padding:14px 18px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:#fb923c">💰 Reajustes de Custo Detectados</span>
+      <span id="reajuste-count" style="font-size:12px;color:var(--muted)"></span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--muted)">Período:
+          <select id="reajuste-dias" onchange="carregarReajustes()" style="background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 6px;font-size:11px">
+            <option value="7">7 dias</option>
+            <option value="15">15 dias</option>
+            <option value="30" selected>30 dias</option>
+            <option value="60">60 dias</option>
+          </select>
+        </label>
+        <button class="btn-sec" onclick="carregarReajustes()" style="font-size:11px;padding:4px 10px">↻ Atualizar</button>
+        <button onclick="document.getElementById('reajuste-painel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">×</button>
+      </div>
+    </div>
+    <div id="reajuste-lista" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">
+          <th style="padding:4px 8px;text-align:left">Produto</th>
+          <th style="padding:4px 8px;text-align:left">Depto</th>
+          <th style="padding:4px 8px;text-align:right">PLU</th>
+          <th style="padding:4px 8px;text-align:right">Custo anterior</th>
+          <th style="padding:4px 8px;text-align:right">Custo novo</th>
+          <th style="padding:4px 8px;text-align:right">Variação</th>
+          <th style="padding:4px 8px;text-align:center">Detectado</th>
+        </tr></thead>
+        <tbody id="reajuste-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Status do banco -->
   <div id="banco-bar" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
@@ -1775,7 +1809,7 @@ function switchTab(tab) {
   if (tab === 'pedido') { pedidoCarregarHistorico(); }
   if (tab === 'transf') { transfInicializar(); }
   if (tab === 'transf-hist') { transfCarregarHistorico(); }
-  if (tab === 'analise') { carregarAlertas(); }
+  if (tab === 'analise') { carregarAlertas(); carregarReajustes(); }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2128,6 +2162,40 @@ async function transfHistImprimir(id) {
   const w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
+}
+
+// ══════════════════════════════════════════════════════════
+// ALERTAS DE REAJUSTE DE CUSTO
+// ══════════════════════════════════════════════════════════
+async function carregarReajustes() {
+  const dias = document.getElementById('reajuste-dias')?.value || '30';
+  const tbody = document.getElementById('reajuste-tbody');
+  const painel = document.getElementById('reajuste-painel');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="padding:10px;color:var(--muted);text-align:center">Carregando...</td></tr>';
+  try {
+    const r = await fetch(`${API}/api/alertas/reajustes?dias=${dias}`);
+    const { reajustes } = await r.json();
+    if (!reajustes || !reajustes.length) { if (painel) painel.style.display = 'none'; return; }
+    if (painel) painel.style.display = '';
+    document.getElementById('reajuste-count').textContent = `${reajustes.length} produto(s) com variação detectada nos últimos ${dias} dias`;
+    if (!tbody) return;
+    tbody.innerHTML = reajustes.map(a => {
+      const subiu = a.variacao_pct > 0;
+      const cor = subiu ? '#f87171' : '#4ade80';
+      const sinal = subiu ? '+' : '';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px">${a.descricao || '—'}</td>
+        <td style="padding:5px 8px;color:var(--muted);font-size:11px">${a.departamento || '—'}</td>
+        <td style="padding:5px 8px;text-align:right;color:var(--muted)">${a.plu}</td>
+        <td style="padding:5px 8px;text-align:right">R$ ${R(a.custo_ant)}</td>
+        <td style="padding:5px 8px;text-align:right;font-weight:700">R$ ${R(a.custo_novo)}</td>
+        <td style="padding:5px 8px;text-align:right;color:${cor};font-weight:700">${sinal}${a.variacao_pct.toFixed(1)}%</td>
+        <td style="padding:5px 8px;text-align:center;color:var(--muted);font-size:11px">${a.detectado_em}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#f87171;text-align:center">Erro ao carregar reajustes</td></tr>';
+  }
 }
 
 // ══════════════════════════════════════════════════════════
