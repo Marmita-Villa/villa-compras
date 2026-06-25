@@ -276,6 +276,7 @@
     <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
     <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')" style="display:none">📊 Análise de Margem</button>
     <button class="tab-nav" id="tab-transf-btn" onclick="switchTab('transf')">🔄 Transferência CD</button>
+    <button class="tab-nav" id="tab-transf-hist-btn" onclick="switchTab('transf-hist')">📦 Histórico Transf.</button>
   </div>
 
   <!-- Seção: Análise de Compras -->
@@ -794,7 +795,9 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
         <div id="transf-nf-titulo" style="font-size:14px;font-weight:700;color:var(--text)"></div>
         <div id="transf-progress" style="font-size:12px;color:var(--muted)"></div>
-        <button class="btn-sec" onclick="transfExportarCSV()" style="margin-left:auto;font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+        <button class="btn-sec" onclick="transfExportarCSV()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+        <button class="btn-sec" onclick="transfImprimir()" style="font-size:12px;padding:6px 14px">🖨 Imprimir Romaneio</button>
+        <button class="btn-primary" onclick="transfConfirmarModal()" style="margin-left:auto;font-size:12px;padding:6px 16px">✅ Confirmar Transferência</button>
       </div>
 
       <!-- Resumo cards -->
@@ -822,6 +825,30 @@
     </div>
 
   </div><!-- /section-transf -->
+
+  <!-- ── Seção: Histórico de Transferências ────────────────────────────── -->
+  <div id="section-transf-hist" style="display:none">
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">📦 Histórico de Transferências</div>
+      <div id="transf-hist-lista" style="font-size:13px;color:var(--muted)">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Confirmar Transferência ───────────────────────────────── -->
+  <div id="modal-transf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center">
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px">✅ Confirmar Transferência</div>
+      <div id="modal-transf-info" style="font-size:13px;color:var(--muted);margin-bottom:14px"></div>
+      <div id="modal-transf-itens" style="font-size:12px;margin-bottom:16px;max-height:300px;overflow-y:auto"></div>
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">Observação (opcional)
+        <textarea id="modal-transf-obs" rows="2" style="width:100%;margin-top:4px;padding:6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;resize:vertical"></textarea>
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-sec" onclick="document.getElementById('modal-transf').style.display='none'" style="font-size:13px;padding:8px 18px">Cancelar</button>
+        <button class="btn-primary" onclick="transfConfirmar()" style="font-size:13px;padding:8px 18px">Confirmar</button>
+      </div>
+    </div>
+  </div>
 
 </main>
 
@@ -1702,15 +1729,18 @@ function switchTab(tab) {
   document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
   document.getElementById('section-pedido').style.display  = tab === 'pedido'  ? '' : 'none';
   document.getElementById('section-margem').style.display  = tab === 'margem'  ? '' : 'none';
-  document.getElementById('section-transf').style.display  = tab === 'transf'  ? '' : 'none';
+  document.getElementById('section-transf').style.display       = tab === 'transf'      ? '' : 'none';
+  document.getElementById('section-transf-hist').style.display  = tab === 'transf-hist' ? '' : 'none';
   document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
   document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
   document.getElementById('tab-pedido-btn').classList.toggle('active',  tab === 'pedido');
   document.getElementById('tab-margem-btn').classList.toggle('active',  tab === 'margem');
   document.getElementById('tab-transf-btn').classList.toggle('active',  tab === 'transf');
+  document.getElementById('tab-transf-hist-btn').classList.toggle('active', tab === 'transf-hist');
   if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
   if (tab === 'pedido') { pedidoCarregarHistorico(); }
   if (tab === 'transf') { transfInicializar(); }
+  if (tab === 'transf-hist') { transfCarregarHistorico(); }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1881,6 +1911,188 @@ function transfExportarCSV() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
   a.download = `transferencia_NF${d.nf.numero_nf}_${d.nf.data_entrada}.csv`;
   a.click();
+}
+
+function transfConfirmarModal() {
+  const d = transfDadosAtivos;
+  if (!d) return;
+  const lojas = d.lojas_venda;
+  const comTransf = d.produtos.filter(p => p.total_a_transferir > 0);
+  const valorTotal = comTransf.reduce((s, p) => s + p.total_a_transferir * p.custo_unit_nf, 0);
+  document.getElementById('modal-transf-info').innerHTML =
+    `<b>NF ${d.nf.numero_nf}</b> — ${d.nf.fornecedor}<br>` +
+    `${comTransf.length} produtos com transferência sugerida — Valor estimado: <b>R$ ${R(valorTotal)}</b>`;
+  document.getElementById('modal-transf-itens').innerHTML =
+    `<table style="width:100%;border-collapse:collapse">` +
+    `<thead><tr style="color:var(--muted);font-size:11px"><th style="text-align:left;padding:4px">Produto</th><th style="text-align:right;padding:4px">PLU</th>` +
+    lojas.map(l => `<th style="text-align:right;padding:4px">Loja ${l}</th>`).join('') +
+    `<th style="text-align:right;padding:4px">Total</th></tr></thead><tbody>` +
+    comTransf.map(p => `<tr style="border-top:1px solid var(--border)">
+      <td style="padding:4px;font-size:11px">${p.nome}</td>
+      <td style="padding:4px;text-align:right;font-size:11px">${p.plu}</td>
+      ${lojas.map(lid => { const t = p.transferencias.find(t => t.para_loja === lid); return `<td style="padding:4px;text-align:right;font-size:11px;color:var(--ok)">${t ? t.qtd : '—'}</td>`; }).join('')}
+      <td style="padding:4px;text-align:right;font-size:11px;font-weight:700">${p.total_a_transferir}</td>
+    </tr>`).join('') +
+    `</tbody></table>`;
+  document.getElementById('modal-transf-obs').value = '';
+  document.getElementById('modal-transf').style.display = 'flex';
+}
+
+async function transfConfirmar() {
+  const d = transfDadosAtivos;
+  if (!d) return;
+  const obs = document.getElementById('modal-transf-obs').value;
+  const lojas = d.lojas_venda;
+  const comTransf = d.produtos.filter(p => p.total_a_transferir > 0);
+  const valorTotal = comTransf.reduce((s, p) => s + p.total_a_transferir * p.custo_unit_nf, 0);
+  const payload = {
+    numero_nf: d.nf.numero_nf, serie_nf: d.nf.serie_nf,
+    codigo_fornecedor: d.nf.codigo_fornecedor, fornecedor: d.nf.fornecedor,
+    data_entrada: d.nf.data_entrada, obs,
+    total_itens: comTransf.length, valor_estimado: +valorTotal.toFixed(2),
+    itens: comTransf.map(p => ({
+      plu: p.plu, nome: p.nome, departamento: p.departamento,
+      qtd_recebida_cd: p.qtd_recebida_cd, custo_unit: p.custo_unit_nf,
+      transferencias: p.transferencias,
+      total_a_transferir: p.total_a_transferir,
+    })),
+  };
+  const r = await fetch(`${API}/api/transferencia/confirmar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const { ok, id } = await r.json();
+  if (ok) {
+    document.getElementById('modal-transf').style.display = 'none';
+    alert(`Transferência #${id} confirmada com sucesso!`);
+    transfImprimir(id);
+  }
+}
+
+function transfImprimir(id) {
+  const d = transfDadosAtivos;
+  if (!d) return;
+  const lojas = d.lojas_venda;
+  const comTransf = d.produtos.filter(p => p.total_a_transferir > 0);
+  const valorTotal = comTransf.reduce((s, p) => s + p.total_a_transferir * p.custo_unit_nf, 0);
+  const agora = new Date().toLocaleString('pt-BR');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Romaneio Transferência NF ${d.nf.numero_nf}</title>
+  <style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px;color:#000}
+  h2{font-size:16px;margin:0 0 4px}
+  .info{color:#555;margin-bottom:12px;font-size:11px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{background:#333;color:#fff;padding:6px 8px;text-align:left;font-size:11px}
+  td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:11px}
+  tr:nth-child(even){background:#f9f9f9}
+  .total{font-weight:bold;background:#eee}
+  @media print{button{display:none}}</style></head>
+  <body>
+  <h2>Romaneio de Transferência CD → Lojas</h2>
+  <div class="info">
+    NF ${d.nf.numero_nf} · Série ${d.nf.serie_nf} · Fornecedor: <b>${d.nf.fornecedor}</b><br>
+    Entrada CD: ${d.nf.data_entrada} · Emitido em: ${agora}<br>
+    Valor estimado: R$ ${R(valorTotal)} · ${comTransf.length} produtos
+  </div>
+  <table>
+    <thead><tr><th>PLU</th><th>Produto</th><th>Depto</th><th>Qtd NF</th>
+    ${lojas.map(l => `<th style="text-align:center">Loja ${l}</th>`).join('')}
+    <th style="text-align:center">Total</th><th>Saldo CD</th></tr></thead>
+    <tbody>
+    ${comTransf.map(p => `<tr>
+      <td>${p.plu}</td><td>${p.nome}</td><td>${p.departamento}</td>
+      <td style="text-align:center">${p.qtd_recebida_cd}</td>
+      ${lojas.map(lid => { const t = p.transferencias.find(t => t.para_loja === lid); return `<td style="text-align:center;font-weight:bold">${t && t.qtd > 0 ? t.qtd : '—'}</td>`; }).join('')}
+      <td style="text-align:center;font-weight:bold">${p.total_a_transferir}</td>
+      <td style="text-align:center">${p.saldo_cd_apos_transf}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table>
+  <div style="margin-top:20px;display:flex;gap:60px">
+    <div>Separado por: _____________________</div>
+    <div>Conferido por: _____________________</div>
+    <div>Data: ___/___/______</div>
+  </div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+async function transfCarregarHistorico() {
+  const el = document.getElementById('transf-hist-lista');
+  el.textContent = 'Carregando...';
+  const r = await fetch(`${API}/api/transferencia/historico`);
+  const { transferencias } = await r.json();
+  if (!transferencias.length) { el.innerHTML = '<span style="color:var(--muted)">Nenhuma transferência confirmada ainda.</span>'; return; }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">
+      <th style="padding:8px 6px;text-align:left">#</th>
+      <th style="padding:8px 6px;text-align:left">NF</th>
+      <th style="padding:8px 6px;text-align:left">Fornecedor</th>
+      <th style="padding:8px 6px;text-align:left">Entrada</th>
+      <th style="padding:8px 6px;text-align:right">Itens</th>
+      <th style="padding:8px 6px;text-align:right">Valor Est.</th>
+      <th style="padding:8px 6px;text-align:left">Confirmado</th>
+      <th style="padding:8px 6px;text-align:center">Ações</th>
+    </tr></thead><tbody>` +
+    transferencias.map(t => {
+      const dt = new Date(t.criado_em * 1000).toLocaleString('pt-BR');
+      return `<tr style="border-bottom:1px solid var(--border);font-size:12px">
+        <td style="padding:8px 6px;color:var(--muted)">#${t.id}</td>
+        <td style="padding:8px 6px;font-weight:600">NF ${t.numero_nf}</td>
+        <td style="padding:8px 6px">${t.fornecedor}</td>
+        <td style="padding:8px 6px">${t.data_entrada}</td>
+        <td style="padding:8px 6px;text-align:right">${t.total_itens}</td>
+        <td style="padding:8px 6px;text-align:right;color:var(--accent2)">R$ ${R(t.valor_estimado)}</td>
+        <td style="padding:8px 6px;color:var(--muted);font-size:11px">${dt}${t.usuario ? ' · ' + t.usuario : ''}</td>
+        <td style="padding:8px 6px;text-align:center">
+          <button class="btn-sec" onclick="transfHistImprimir(${t.id})" style="font-size:11px;padding:4px 10px">🖨 Romaneio</button>
+        </td>
+      </tr>`;
+    }).join('') +
+    `</tbody></table>`;
+}
+
+async function transfHistImprimir(id) {
+  const r = await fetch(`${API}/api/transferencia/ver/${id}`);
+  const { transferencia: t } = await r.json();
+  const lojas = [...new Set(t.itens.flatMap(p => p.transferencias.map(x => x.para_loja)))].sort();
+  const agora = new Date(t.criado_em * 1000).toLocaleString('pt-BR');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Romaneio #${t.id}</title>
+  <style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px;color:#000}
+  h2{font-size:16px;margin:0 0 4px}.info{color:#555;margin-bottom:12px;font-size:11px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{background:#333;color:#fff;padding:6px 8px;text-align:left;font-size:11px}
+  td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:11px}
+  tr:nth-child(even){background:#f9f9f9}
+  @media print{button{display:none}}</style></head>
+  <body>
+  <h2>Romaneio de Transferência #${t.id}</h2>
+  <div class="info">
+    NF ${t.numero_nf} · Série ${t.serie_nf} · Fornecedor: <b>${t.fornecedor}</b><br>
+    Entrada CD: ${t.data_entrada} · Confirmado em: ${agora}${t.obs ? '<br>Obs: ' + t.obs : ''}
+  </div>
+  <table>
+    <thead><tr><th>PLU</th><th>Produto</th><th>Depto</th><th>Qtd NF</th>
+    ${lojas.map(l => `<th style="text-align:center">Loja ${l}</th>`).join('')}
+    <th style="text-align:center">Total</th></tr></thead>
+    <tbody>
+    ${t.itens.map(p => `<tr>
+      <td>${p.plu}</td><td>${p.nome}</td><td>${p.departamento}</td>
+      <td style="text-align:center">${p.qtd_recebida_cd}</td>
+      ${lojas.map(lid => { const tf = p.transferencias.find(x => x.para_loja === lid); return `<td style="text-align:center;font-weight:bold">${tf && tf.qtd > 0 ? tf.qtd : '—'}</td>`; }).join('')}
+      <td style="text-align:center;font-weight:bold">${p.total_a_transferir}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table>
+  <div style="margin-top:20px;display:flex;gap:60px">
+    <div>Separado por: _____________________</div>
+    <div>Conferido por: _____________________</div>
+    <div>Data: ___/___/______</div>
+  </div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
 }
 
 // ══════════════════════════════════════════════════════════
