@@ -245,11 +245,12 @@ async function rodarSync(jid, lojaId, diasHist) {
     }
     if (!faltandoV.length) jAtualiza(jid, 45, 'Vendas: todas as datas já no banco ✓');
 
-    // Compras
-    const faltandoC = db.datasFaltandoCompras(lojaId, datas);
+    // Compras — datas novas + últimos 3 dias sempre re-buscados (NFs podem ser lançadas com atraso)
+    const recentes3 = dateRange(daysAgo(3), daysAgo(0)).filter(d => datas.includes(d));
+    const faltandoC = [...new Set([...db.datasFaltandoCompras(lojaId, datas), ...recentes3])].sort();
     for (let i = 0; i < faltandoC.length; i++) {
       const pct = Math.round(45 + ((i + 1) / Math.max(faltandoC.length, 1)) * 35);
-      jAtualiza(jid, pct, `Compras: ${faltandoC[i]} (${i + 1}/${faltandoC.length} datas novas)`);
+      jAtualiza(jid, pct, `Compras: ${faltandoC[i]} (${i + 1}/${faltandoC.length} datas)`);
       const c = await hGetAll(`/api/hipcom/comprasprodutos?loja=${lojaId}&data=${faltandoC[i]}`);
       db.setCompras(lojaId, faltandoC[i], c);
     }
