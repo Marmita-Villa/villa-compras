@@ -1318,6 +1318,50 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { dados: j.resultado });
     }
 
+    if (pathname === '/api/pedidos/comparar') {
+      const id = parseInt(q.id);
+      const pedido = db.verPedido(id);
+      if (!pedido) return jRes(res, 404, { erro: 'Pedido não encontrado' });
+      const itens = JSON.parse(pedido.itens || '[]');
+      const codForn = String(pedido.fornecedor);
+      // Busca compras do fornecedor após a data do pedido (até 60 dias depois)
+      const dataPedido = pedido.data;
+      const dataFim = (() => { const d = new Date(dataPedido); d.setDate(d.getDate() + 60); return d.toISOString().slice(0,10); })();
+      const datas = dateRange(dataPedido, dataFim <= today() ? dataFim : today());
+      // Agrupa compras por PLU (todas as lojas)
+      const recebidoPlu = {}; // plu -> { qtd, valor, nfs: Set }
+      for (const loja of [LOJA_CD]) {
+        for (const dt of datas) {
+          const compras = db.getCompras(loja, dt) || [];
+          for (const c of compras) {
+            if (String(c.codigo_fornecedor) !== codForn) continue;
+            const plu = String(c.plu);
+            if (!recebidoPlu[plu]) recebidoPlu[plu] = { qtd: 0, nfs: new Set() };
+            recebidoPlu[plu].qtd += parseFloat(c.quantidade_total || 0);
+            recebidoPlu[plu].nfs.add(`${c.numero_nf}/${c.serie_nf}`);
+          }
+        }
+      }
+      const comparativo = itens.map(item => {
+        const plu = String(item.plu);
+        const rec = recebidoPlu[plu];
+        const qtdPedido = parseFloat(item.qtd_pedido || item.qtd_sugerida || 0);
+        const qtdRecebida = rec ? +rec.qtd.toFixed(3) : 0;
+        const diff = qtdRecebida - qtdPedido;
+        const status = qtdRecebida === 0 ? 'NÃO RECEBIDO'
+          : Math.abs(diff) < 0.01 ? 'OK'
+          : diff > 0 ? 'RECEBEU A MAIS'
+          : 'RECEBEU A MENOS';
+        return {
+          plu: item.plu, nome: item.nome || item.descricao || '',
+          qtd_pedido: qtdPedido, qtd_recebida: qtdRecebida,
+          diferenca: +diff.toFixed(3), status,
+          nfs: rec ? [...rec.nfs].join(', ') : '',
+        };
+      });
+      return jRes(res, 200, { pedido: { id: pedido.id, forn_nome: pedido.forn_nome, data: pedido.data }, comparativo });
+    }
+
     if (pathname === '/api/alertas/reajustes') {
       const dias = parseInt(q.dias || '30');
       return jRes(res, 200, { reajustes: db.listarReajustes(dias), dias });
