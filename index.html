@@ -271,7 +271,8 @@
 
   <!-- Tabs de navegação -->
   <div class="tabs-bar">
-    <button class="tab-nav active" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
+    <button class="tab-nav active" id="tab-dash-btn" onclick="switchTab('dash')">🏠 Dashboard</button>
+    <button class="tab-nav" id="tab-analise-btn" onclick="switchTab('analise')">📦 Análise de Compras</button>
     <button class="tab-nav" id="tab-fluxo-btn" onclick="switchTab('fluxo')">💰 Fluxo de Caixa</button>
     <button class="tab-nav" id="tab-pedido-btn" onclick="switchTab('pedido')">📋 Pedidos</button>
     <button class="tab-nav" id="tab-margem-btn" onclick="switchTab('margem')" style="display:none">📊 Análise de Margem</button>
@@ -279,8 +280,37 @@
     <button class="tab-nav" id="tab-transf-hist-btn" onclick="switchTab('transf-hist')">📦 Histórico Transf.</button>
   </div>
 
+  <!-- ── Seção: Dashboard ───────────────────────────────────────────────── -->
+  <div id="section-dash">
+    <!-- Cards principais -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px" id="dash-cards"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex-wrap:wrap" id="dash-grid">
+      <!-- NFs hoje no CD -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📥 NFs recebidas hoje no CD</div>
+        <div id="dash-nfs-hoje" style="font-size:12px;color:var(--muted)">Carregando...</div>
+      </div>
+      <!-- Ruptura -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">⚠️ Produtos em ruptura / críticos</div>
+        <div id="dash-ruptura" style="font-size:12px;color:var(--muted)">Carregando...</div>
+      </div>
+      <!-- Pedidos recentes -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 Pedidos recentes</div>
+        <div id="dash-pedidos" style="font-size:12px;color:var(--muted)">Carregando...</div>
+      </div>
+      <!-- Reajustes -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">💰 Reajustes de custo (30 dias)</div>
+        <div id="dash-reajustes" style="font-size:12px;color:var(--muted)">Carregando...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Seção: Análise de Compras -->
-  <div id="section-analise">
+  <div id="section-analise" style="display:none">
 
   <!-- Alertas de Ruptura -->
   <div id="ruptura-painel" style="display:none;background:var(--card2);border:1px solid #f87171;border-radius:10px;padding:14px 18px;margin-bottom:12px">
@@ -1809,19 +1839,22 @@ function switchTab(tab) {
   document.getElementById('section-fluxo').style.display   = tab === 'fluxo'   ? '' : 'none';
   document.getElementById('section-pedido').style.display  = tab === 'pedido'  ? '' : 'none';
   document.getElementById('section-margem').style.display  = tab === 'margem'  ? '' : 'none';
+  document.getElementById('section-dash').style.display         = tab === 'dash'        ? '' : 'none';
   document.getElementById('section-transf').style.display       = tab === 'transf'      ? '' : 'none';
   document.getElementById('section-transf-hist').style.display  = tab === 'transf-hist' ? '' : 'none';
-  document.getElementById('tab-analise-btn').classList.toggle('active', tab === 'analise');
-  document.getElementById('tab-fluxo-btn').classList.toggle('active',   tab === 'fluxo');
-  document.getElementById('tab-pedido-btn').classList.toggle('active',  tab === 'pedido');
-  document.getElementById('tab-margem-btn').classList.toggle('active',  tab === 'margem');
-  document.getElementById('tab-transf-btn').classList.toggle('active',  tab === 'transf');
+  document.getElementById('tab-dash-btn').classList.toggle('active',     tab === 'dash');
+  document.getElementById('tab-analise-btn').classList.toggle('active',  tab === 'analise');
+  document.getElementById('tab-fluxo-btn').classList.toggle('active',    tab === 'fluxo');
+  document.getElementById('tab-pedido-btn').classList.toggle('active',   tab === 'pedido');
+  document.getElementById('tab-margem-btn').classList.toggle('active',   tab === 'margem');
+  document.getElementById('tab-transf-btn').classList.toggle('active',   tab === 'transf');
   document.getElementById('tab-transf-hist-btn').classList.toggle('active', tab === 'transf-hist');
-  if (tab === 'fluxo') { carregarCalendario(); carregarCalDados(); }
-  if (tab === 'pedido') { pedidoCarregarHistorico(); }
-  if (tab === 'transf') { transfInicializar(); }
+  if (tab === 'dash')        { dashCarregar(); }
+  if (tab === 'fluxo')       { carregarCalendario(); carregarCalDados(); }
+  if (tab === 'pedido')      { pedidoCarregarHistorico(); }
+  if (tab === 'transf')      { transfInicializar(); }
   if (tab === 'transf-hist') { transfCarregarHistorico(); }
-  if (tab === 'analise') { carregarAlertas(); carregarReajustes(); }
+  if (tab === 'analise')     { carregarAlertas(); carregarReajustes(); }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2174,6 +2207,97 @@ async function transfHistImprimir(id) {
   const w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
+}
+
+// ══════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════
+async function dashCarregar() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const fmtData = d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+
+  // Cards de resumo
+  const cards = document.getElementById('dash-cards');
+  cards.innerHTML = ['NFs hoje no CD','Em ruptura / crítico','Pedidos (30d)','Reajustes (30d)']
+    .map(l => `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${l}</div>
+      <div style="font-size:26px;font-weight:700;color:var(--text)" id="dash-card-${l.replace(/\W/g,'_')}">—</div>
+    </div>`).join('');
+
+  // NFs hoje no CD
+  const elNFs = document.getElementById('dash-nfs-hoje');
+  try {
+    const { nfs } = await fetch(`${API}/api/transferencia/nfs?data_inicio=${hoje}&data_fim=${hoje}`).then(r => r.json());
+    const card = document.getElementById('dash-card-NFs_hoje_no_CD');
+    if (!nfs || !nfs.length) {
+      elNFs.innerHTML = '<span style="color:var(--muted)">Nenhuma NF encontrada hoje.</span>';
+      if (card) card.textContent = '0';
+    } else {
+      if (card) card.textContent = nfs.length;
+      elNFs.innerHTML = nfs.slice(0, 6).map(n =>
+        `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600">NF ${n.numero_nf}</span>
+          <span style="color:var(--muted);font-size:11px">${n.fornecedor}</span>
+          <span style="color:var(--accent2)">${n.total_itens} itens · R$ ${R(n.valor_total)}</span>
+        </div>`).join('') +
+        (nfs.length > 6 ? `<div style="color:var(--muted);font-size:11px;margin-top:6px">+${nfs.length-6} mais — <a href="#" onclick="switchTab('transf');return false" style="color:var(--accent)">ver tudo</a></div>` : '');
+    }
+  } catch(e) { elNFs.innerHTML = '<span style="color:#f87171">Erro</span>'; }
+
+  // Ruptura
+  const elRup = document.getElementById('dash-ruptura');
+  try {
+    const { alertas } = await fetch(`${API}/api/alertas/ruptura?dias=7`).then(r => r.json());
+    const card = document.getElementById('dash-card-Em_ruptura___crítico');
+    if (!alertas || !alertas.length) {
+      elRup.innerHTML = '<span style="color:#4ade80">Nenhum produto em situação crítica.</span>';
+      if (card) { card.textContent = '0'; card.style.color = '#4ade80'; }
+    } else {
+      if (card) { card.textContent = alertas.length; card.style.color = '#f87171'; }
+      elRup.innerHTML = alertas.slice(0, 5).map(a => {
+        const cor = a.em_ruptura ? '#f87171' : a.dias_estoque <= 3 ? '#fb923c' : '#fbbf24';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span>${a.nome || 'PLU ' + a.plu}</span>
+          <span style="color:${cor};font-weight:700;font-size:11px">${a.em_ruptura ? 'RUPTURA' : a.dias_estoque.toFixed(1) + ' dias'}</span>
+        </div>`;
+      }).join('') +
+      (alertas.length > 5 ? `<div style="color:var(--muted);font-size:11px;margin-top:6px">+${alertas.length-5} mais — <a href="#" onclick="switchTab('analise');return false" style="color:var(--accent)">ver tudo</a></div>` : '');
+    }
+  } catch(e) { elRup.innerHTML = '<span style="color:#f87171">Erro</span>'; }
+
+  // Pedidos recentes
+  const elPed = document.getElementById('dash-pedidos');
+  try {
+    const lista = await fetch(`${API}/api/pedidos/listar`).then(r => r.json());
+    const card = document.getElementById('dash-card-Pedidos__30d_');
+    const recentes = lista.filter(p => { const d = new Date(p.criado_em * 1000); return (Date.now() - d) < 30*86400*1000; });
+    if (card) card.textContent = recentes.length;
+    if (!recentes.length) { elPed.innerHTML = '<span style="color:var(--muted)">Nenhum pedido nos últimos 30 dias.</span>'; }
+    else elPed.innerHTML = recentes.slice(0, 5).map(p =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span><b>#${p.id}</b> ${p.forn_nome || ''}</span>
+        <span style="color:#22c55e;font-weight:700">R$ ${R(p.total)}</span>
+        <span style="color:var(--muted);font-size:11px">${fmtData(p.data)}</span>
+      </div>`).join('') +
+      `<div style="margin-top:8px"><a href="#" onclick="switchTab('pedido');return false" style="color:var(--accent);font-size:12px">Ver todos →</a></div>`;
+  } catch(e) { elPed.innerHTML = '<span style="color:#f87171">Erro</span>'; }
+
+  // Reajustes
+  const elReaj = document.getElementById('dash-reajustes');
+  try {
+    const { reajustes } = await fetch(`${API}/api/alertas/reajustes?dias=30`).then(r => r.json());
+    const card = document.getElementById('dash-card-Reajustes__30d_');
+    if (card) { card.textContent = reajustes.length; if (reajustes.length) card.style.color = '#fb923c'; }
+    if (!reajustes || !reajustes.length) { elReaj.innerHTML = '<span style="color:var(--muted)">Nenhum reajuste detectado.</span>'; }
+    else elReaj.innerHTML = reajustes.slice(0, 5).map(a => {
+      const cor = a.variacao_pct > 0 ? '#f87171' : '#4ade80';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.descricao || 'PLU ' + a.plu}</span>
+        <span style="color:${cor};font-weight:700;margin-left:8px">${a.variacao_pct > 0 ? '+' : ''}${a.variacao_pct.toFixed(1)}%</span>
+      </div>`;
+    }).join('') +
+    (reajustes.length > 5 ? `<div style="color:var(--muted);font-size:11px;margin-top:6px">+${reajustes.length-5} mais — <a href="#" onclick="switchTab('analise');return false" style="color:var(--accent)">ver tudo</a></div>` : '');
+  } catch(e) { elReaj.innerHTML = '<span style="color:#f87171">Erro</span>'; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3519,6 +3643,7 @@ async function alterarSenha() {
   carregarLojas();
   carregarFornecedores();
   atualizarStatusBanco();
+  switchTab('dash');
 })();
 </script>
 
