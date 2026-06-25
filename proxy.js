@@ -1229,13 +1229,17 @@ const server = http.createServer(async (req, res) => {
 
     // ── Sugestão de Transferência ─────────────────────────────────────────
     if (pathname === '/api/transferencia/debug') {
-      // Diagnóstico: mostra os primeiros itens de compras do CD numa data
-      const dt = q.data || daysAgo(1);
+      const dt  = q.data || daysAgo(1);
+      const nf  = q.numero_nf;
+      const plu = q.plu ? +q.plu : null;
       const itens = db.getCompras(LOJA_CD, dt) || [];
+      let filtrado = itens;
+      if (nf)  filtrado = filtrado.filter(c => String(c.numero_nf) === String(nf));
+      if (plu) filtrado = filtrado.filter(c => c.plu === plu);
       return jRes(res, 200, {
-        loja_cd: LOJA_CD, data: dt,
-        total_itens: itens.length,
-        amostra: itens.slice(0, 3),
+        loja_cd: LOJA_CD, data: dt, total_itens: itens.length,
+        filtrados: filtrado.length,
+        amostra: filtrado.slice(0, 5),
         campos: itens[0] ? Object.keys(itens[0]) : [],
       });
     }
