@@ -1229,19 +1229,27 @@ const server = http.createServer(async (req, res) => {
 
     // ── Sugestão de Transferência ─────────────────────────────────────────
     if (pathname === '/api/transferencia/debug') {
-      const dt  = q.data || daysAgo(1);
       const nf  = q.numero_nf;
       const plu = q.plu ? +q.plu : null;
-      const itens = db.getCompras(LOJA_CD, dt) || [];
-      let filtrado = itens;
-      if (nf)  filtrado = filtrado.filter(c => String(c.numero_nf) === String(nf));
-      if (plu) filtrado = filtrado.filter(c => c.plu === plu);
-      return jRes(res, 200, {
-        loja_cd: LOJA_CD, data: dt, total_itens: itens.length,
-        filtrados: filtrado.length,
-        amostra: filtrado.slice(0, 5),
-        campos: itens[0] ? Object.keys(itens[0]) : [],
-      });
+      if (q.data) {
+        const itens = db.getCompras(LOJA_CD, q.data) || [];
+        let filtrado = itens;
+        if (nf)  filtrado = filtrado.filter(c => String(c.numero_nf) === String(nf));
+        if (plu) filtrado = filtrado.filter(c => c.plu === plu);
+        return jRes(res, 200, { loja_cd: LOJA_CD, data: q.data, total_itens: itens.length, filtrados: filtrado.length, amostra: filtrado.slice(0, 5), campos: itens[0] ? Object.keys(itens[0]) : [] });
+      }
+      // Sem data: busca NF em todas as datas disponíveis
+      const datas = dateRange(daysAgo(90), daysAgo(0));
+      const encontrados = [];
+      for (const dt of datas) {
+        const itens = db.getCompras(LOJA_CD, dt) || [];
+        let f = itens;
+        if (nf)  f = f.filter(c => String(c.numero_nf) === String(nf));
+        if (plu) f = f.filter(c => c.plu === plu);
+        if (f.length) encontrados.push({ data: dt, qtd: f.length, amostra: f.slice(0, 2) });
+        if (encontrados.length >= 5) break;
+      }
+      return jRes(res, 200, { loja_cd: LOJA_CD, buscou_nf: nf || null, resultado: encontrados });
     }
 
     if (pathname === '/api/transferencia/nfs') {
