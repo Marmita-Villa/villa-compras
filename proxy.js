@@ -711,7 +711,7 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
       const qtdEmb  = parseFloat(prod.qtd_embalagem || 1) || 1;
 
       const qtdRecebidaCD = qtdNFporPlu[plu] || 0;
-      const custoUnitNF   = qtdRecebidaCD > 0 ? (valNFporPlu[plu] || 0) / qtdRecebidaCD : custo;
+      const custoUnitNF   = custo; // valor_total da API comprasprodutos é preço de venda, não custo
       const estCD         = estPorLoja[LOJA_CD]?.[plu] || 0;
 
       // Vendas históricas por loja de venda (período completo do banco)
