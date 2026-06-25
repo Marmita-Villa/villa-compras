@@ -231,9 +231,18 @@ async function rodarSync(jid, lojaId, diasHist) {
     db.setFornecedores(forn);
     db.setFP(lojaId, fp);
     db.setLojas(lojasArr);
-    // Salva qtd_embalagem de TODOS os produtos (sem filtro rentabilidade) para análise de unidades
+    // Salva qtd_embalagem de TODOS os produtos — e detecta reajustes de custo
+    const embAntes = db.getProdEmbMap();
     const todosProds = await hGetAll(`/api/hipcom/produtos?loja=${lojaId}`);
     db.setEmbalagemMap(todosProds);
+    const hoje2 = today();
+    for (const p of todosProds) {
+      const ant = embAntes[String(p.plu)];
+      const custoNovo = parseFloat(p.custo || 0);
+      if (ant && ant.custo_unit > 0 && custoNovo > 0 && Math.abs(custoNovo - ant.custo_unit) / ant.custo_unit > 0.001) {
+        db.registrarReajuste(p.plu, p.descricao || '', p.departamento || '', ant.custo_unit, custoNovo, hoje2);
+      }
+    }
 
     // Vendas
     const faltandoV = db.datasFaltandoVendas(lojaId, datas);
@@ -1307,6 +1316,11 @@ const server = http.createServer(async (req, res) => {
       if (!j.done) return jRes(res, 202, { msg: 'Processando', pct: j.pct });
       if (j.erro)  return jRes(res, 500, { erro: j.erro });
       return jRes(res, 200, { dados: j.resultado });
+    }
+
+    if (pathname === '/api/alertas/reajustes') {
+      const dias = parseInt(q.dias || '30');
+      return jRes(res, 200, { reajustes: db.listarReajustes(dias), dias });
     }
 
     if (pathname === '/api/alertas/ruptura') {

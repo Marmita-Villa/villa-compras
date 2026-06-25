@@ -414,6 +414,34 @@ function deletarPedido(id) {
   db.prepare('DELETE FROM pedidos WHERE id=?').run(id);
 }
 
+// ── Histórico de Custos ───────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS historico_custos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    plu         TEXT    NOT NULL,
+    descricao   TEXT    NOT NULL DEFAULT '',
+    departamento TEXT   NOT NULL DEFAULT '',
+    custo_ant   REAL    NOT NULL,
+    custo_novo  REAL    NOT NULL,
+    variacao_pct REAL   NOT NULL,
+    detectado_em TEXT   NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_hc_plu ON historico_custos(plu);
+  CREATE INDEX IF NOT EXISTS idx_hc_data ON historico_custos(detectado_em);
+`);
+
+function registrarReajuste(plu, descricao, departamento, custoAnt, custoNovo, data) {
+  if (Math.abs(custoNovo - custoAnt) < 0.001) return; // ignorar diferenças mínimas
+  const variacao = ((custoNovo - custoAnt) / custoAnt) * 100;
+  db.prepare('INSERT INTO historico_custos(plu,descricao,departamento,custo_ant,custo_novo,variacao_pct,detectado_em) VALUES(?,?,?,?,?,?,?)')
+    .run(String(plu), descricao||'', departamento||'', custoAnt, custoNovo, +variacao.toFixed(2), data);
+}
+function listarReajustes(dias) {
+  const dataMin = new Date(); dataMin.setDate(dataMin.getDate() - (dias||30));
+  const dt = dataMin.toISOString().slice(0,10);
+  return db.prepare('SELECT * FROM historico_custos WHERE detectado_em >= ? ORDER BY detectado_em DESC LIMIT 200').all(dt);
+}
+
 // ── Transferências CD → Lojas ─────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS transferencias (
@@ -481,6 +509,7 @@ module.exports = {
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
   salvarPedido, listarPedidos, verPedido, deletarPedido,
+  registrarReajuste, listarReajustes,
   salvarTransferencia, listarTransferencias, verTransferencia,
   getPrazo, setPrazo,
   criarUsuario, autenticarUsuario, criarSessao, getSessao, deleteSessao,
