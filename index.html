@@ -810,7 +810,7 @@
               <th>Depto</th>
               <th style="text-align:right">Qtd NF</th>
               <th style="text-align:right">Est. CD</th>
-              <th id="transf-th-lojas"></th><!-- colunas dinâmicas por loja -->
+              <th id="transf-th-lojas" style="display:none"></th><!-- colunas dinâmicas por loja -->
               <th style="text-align:right">Total Transf.</th>
               <th style="text-align:right">Saldo CD</th>
               <th>Status</th>
@@ -1800,11 +1800,12 @@ function transfRenderizar(dados) {
   document.getElementById('transf-progress').textContent = `Concluído — ${dados.produtos.length} produtos`;
   const lojas = dados.lojas_venda;
 
-  // Cabeçalho dinâmico das lojas (estoque + transferência sugerida)
+  // Cabeçalho dinâmico das lojas
+  document.querySelectorAll('.transf-th-loja-col').forEach(el => el.remove());
   const thEl = document.getElementById('transf-th-lojas');
-  thEl.outerHTML = lojas.map(l =>
-    `<th style="text-align:right" id="transf-th-l${l}">Loja ${l}<br><span style="font-size:10px;font-weight:400;color:var(--muted)">Est / Venda / Transf.</span></th>`
-  ).join('');
+  thEl.insertAdjacentHTML('afterend', lojas.map(l =>
+    `<th class="transf-th-loja-col" style="text-align:right">Loja ${l}<br><span style="font-size:10px;font-weight:400;color:var(--muted)">Est / Venda / Transf.</span></th>`
+  ).join(''));
 
   // Cards resumo
   const comTransf  = dados.produtos.filter(p => p.total_a_transferir > 0);
