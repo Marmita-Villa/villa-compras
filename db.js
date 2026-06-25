@@ -414,6 +414,38 @@ function deletarPedido(id) {
   db.prepare('DELETE FROM pedidos WHERE id=?').run(id);
 }
 
+// ── Transferências CD → Lojas ─────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS transferencias (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero_nf       TEXT    NOT NULL,
+    serie_nf        TEXT    NOT NULL,
+    codigo_fornecedor INTEGER NOT NULL,
+    fornecedor      TEXT    NOT NULL,
+    data_entrada    TEXT    NOT NULL,
+    obs             TEXT,
+    total_itens     INTEGER NOT NULL DEFAULT 0,
+    valor_estimado  REAL    NOT NULL DEFAULT 0,
+    itens           TEXT    NOT NULL,
+    usuario         TEXT,
+    criado_em       INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  );
+`);
+
+function salvarTransferencia(t, usuario) {
+  const r = db.prepare(
+    'INSERT INTO transferencias(numero_nf,serie_nf,codigo_fornecedor,fornecedor,data_entrada,obs,total_itens,valor_estimado,itens,usuario) VALUES(?,?,?,?,?,?,?,?,?,?)'
+  ).run(t.numero_nf, t.serie_nf||'', t.codigo_fornecedor||0, t.fornecedor||'', t.data_entrada||'', t.obs||'',
+        t.total_itens||0, t.valor_estimado||0, JSON.stringify(t.itens||[]), usuario||'');
+  return r.lastInsertRowid;
+}
+function listarTransferencias() {
+  return db.prepare('SELECT id,numero_nf,serie_nf,fornecedor,data_entrada,total_itens,valor_estimado,usuario,criado_em FROM transferencias ORDER BY criado_em DESC').all();
+}
+function verTransferencia(id) {
+  return db.prepare('SELECT * FROM transferencias WHERE id=?').get(id);
+}
+
 // ── Prazos por Fornecedor ──────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS fornecedor_prazos (
@@ -449,6 +481,7 @@ module.exports = {
   getStats,
   setContasPagar, getContasPagar, getStatsCP,
   salvarPedido, listarPedidos, verPedido, deletarPedido,
+  salvarTransferencia, listarTransferencias, verTransferencia,
   getPrazo, setPrazo,
   criarUsuario, autenticarUsuario, criarSessao, getSessao, deleteSessao,
   listarUsuarios, deletarUsuario, alterarSenha,

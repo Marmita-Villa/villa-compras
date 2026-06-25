@@ -1309,6 +1309,26 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { dados: j.resultado });
     }
 
+    if (pathname === '/api/transferencia/confirmar' && req.method === 'POST') {
+      const body = await readBody(req);
+      const t = JSON.parse(body);
+      if (!t || !t.numero_nf) return jRes(res, 400, { erro: 'Dados inválidos' });
+      const id = db.salvarTransferencia(t, sess?.usuario);
+      return jRes(res, 200, { ok: true, id });
+    }
+
+    if (pathname === '/api/transferencia/historico') {
+      return jRes(res, 200, { transferencias: db.listarTransferencias() });
+    }
+
+    if (pathname.startsWith('/api/transferencia/ver/')) {
+      const id = parseInt(pathname.split('/').pop());
+      const t = db.verTransferencia(id);
+      if (!t) return jRes(res, 404, { erro: 'Não encontrada' });
+      t.itens = JSON.parse(t.itens || '[]');
+      return jRes(res, 200, { transferencia: t });
+    }
+
     jRes(res, 404, { erro: 'Rota não encontrada: ' + pathname });
   } catch (err) {
     console.error('[ERRO]', err.message);
