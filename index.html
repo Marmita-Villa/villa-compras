@@ -1721,12 +1721,10 @@ let transfDadosAtivos = null;
 
 function transfInicializar() {
   const hoje = new Date();
-  const fmt  = d => d.toISOString().slice(0, 10);
+  const fmt  = d => { const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; };
   const ini  = new Date(hoje); ini.setDate(hoje.getDate() - 7);
-  const fimEl = document.getElementById('transf-data-fim');
-  const iniEl = document.getElementById('transf-data-ini');
-  if (!fimEl.value) fimEl.value = fmt(hoje);
-  if (!iniEl.value) iniEl.value = fmt(ini);
+  document.getElementById('transf-data-fim').value = fmt(hoje);
+  document.getElementById('transf-data-ini').value = fmt(ini);
 }
 
 async function transfBuscarNFs() {
