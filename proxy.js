@@ -1309,6 +1309,76 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { dados: j.resultado });
     }
 
+    if (pathname === '/api/alertas/ruptura') {
+      const diasAlerta = parseInt(q.dias || '7');
+      const diasVenda  = 30;
+      const lojas      = (await hGet('/api/hipcom/lojas')).lojas || [];
+      const lojasFiltradas = LOJAS_ATIVAS ? lojas.filter(l => LOJAS_ATIVAS.includes(l.id)) : lojas;
+      const lojaVenda  = lojasFiltradas.filter(l => l.id !== LOJA_CD).map(l => l.id);
+      const dataEstoque = daysAgo(1);
+      const dataInicio  = daysAgo(diasVenda);
+      const dataFim     = daysAgo(1);
+      const datas       = dateRange(dataInicio, dataFim);
+      const embMap      = db.getProdEmbMap();
+
+      // Estoque atual por PLU por loja
+      const estPorLoja = {};
+      for (const loja of lojasFiltradas) {
+        const est = db.getEstoque(loja.id, dataEstoque) || [];
+        for (const e of est) estPorLoja[`${loja.id}|${e.plu}`] = parseFloat(e.qtd_estoque_atual || 0);
+      }
+
+      // Vendas acumuladas por PLU (apenas lojas de venda)
+      const vendasPlu = {};
+      for (const loja of lojaVenda) {
+        for (const dt of datas) {
+          const v = db.getVendas(loja, dt) || [];
+          for (const item of v) {
+            const plu = item.plu;
+            const emb = embMap[String(plu)];
+            const custoUnit = emb?.custo_unit || 0;
+            const custoScan = parseFloat(item.custo || 0);
+            const fator = (custoUnit > 0 && custoScan > 0 && custoScan / custoUnit > 1.5)
+              ? Math.round(custoScan / custoUnit) : 1;
+            const qtd = parseFloat(item.quantidade || 0) * fator;
+            vendasPlu[plu] = (vendasPlu[plu] || 0) + qtd;
+          }
+        }
+      }
+
+      // Estoque total (todas as lojas) por PLU
+      const estTotalPlu = {};
+      for (const loja of lojasFiltradas) {
+        for (const [chave, qtd] of Object.entries(estPorLoja)) {
+          const [lid, plu] = chave.split('|');
+          estTotalPlu[plu] = (estTotalPlu[plu] || 0) + qtd;
+        }
+      }
+
+      // Calcular dias de estoque restante
+      const alertas = [];
+      for (const [plu, vendaTotal] of Object.entries(vendasPlu)) {
+        const vmDiaria = vendaTotal / diasVenda;
+        if (vmDiaria <= 0) continue;
+        const estTotal = estTotalPlu[plu] || 0;
+        const diasEst  = estTotal / vmDiaria;
+        if (diasEst <= diasAlerta) {
+          const emb = embMap[String(plu)] || {};
+          alertas.push({
+            plu: +plu,
+            nome: emb.descricao || '',
+            departamento: emb.departamento || '',
+            estoque_total: +estTotal.toFixed(3),
+            venda_media_diaria: +vmDiaria.toFixed(3),
+            dias_estoque: +diasEst.toFixed(1),
+            em_ruptura: estTotal <= 0,
+          });
+        }
+      }
+      alertas.sort((a, b) => a.dias_estoque - b.dias_estoque);
+      return jRes(res, 200, { alertas, dias_alerta: diasAlerta, gerado_em: new Date().toISOString() });
+    }
+
     if (pathname === '/api/transferencia/confirmar' && req.method === 'POST') {
       const body = await readBody(req);
       const t = JSON.parse(body);

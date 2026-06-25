@@ -282,6 +282,40 @@
   <!-- Seção: Análise de Compras -->
   <div id="section-analise">
 
+  <!-- Alertas de Ruptura -->
+  <div id="ruptura-painel" style="display:none;background:var(--card2);border:1px solid #f87171;border-radius:10px;padding:14px 18px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:#f87171">⚠️ Alerta de Ruptura Iminente</span>
+      <span id="ruptura-count" style="font-size:12px;color:var(--muted)"></span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--muted)">Dias críticos:
+          <select id="ruptura-dias" onchange="carregarAlertas()" style="background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 6px;font-size:11px">
+            <option value="3">3 dias</option>
+            <option value="5">5 dias</option>
+            <option value="7" selected>7 dias</option>
+            <option value="14">14 dias</option>
+          </select>
+        </label>
+        <button class="btn-sec" onclick="carregarAlertas()" style="font-size:11px;padding:4px 10px">↻ Atualizar</button>
+        <button onclick="document.getElementById('ruptura-painel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">×</button>
+      </div>
+    </div>
+    <div id="ruptura-lista" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">
+          <th style="padding:4px 8px;text-align:left">Produto</th>
+          <th style="padding:4px 8px;text-align:left">Depto</th>
+          <th style="padding:4px 8px;text-align:right">PLU</th>
+          <th style="padding:4px 8px;text-align:right">Estoque</th>
+          <th style="padding:4px 8px;text-align:right">Venda/dia</th>
+          <th style="padding:4px 8px;text-align:right">Dias restantes</th>
+          <th style="padding:4px 8px;text-align:center">Status</th>
+        </tr></thead>
+        <tbody id="ruptura-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Status do banco -->
   <div id="banco-bar" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
@@ -1741,6 +1775,7 @@ function switchTab(tab) {
   if (tab === 'pedido') { pedidoCarregarHistorico(); }
   if (tab === 'transf') { transfInicializar(); }
   if (tab === 'transf-hist') { transfCarregarHistorico(); }
+  if (tab === 'analise') { carregarAlertas(); }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2093,6 +2128,47 @@ async function transfHistImprimir(id) {
   const w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
+}
+
+// ══════════════════════════════════════════════════════════
+// ALERTAS DE RUPTURA IMINENTE
+// ══════════════════════════════════════════════════════════
+let _alertasCarregando = false;
+async function carregarAlertas() {
+  if (_alertasCarregando) return;
+  _alertasCarregando = true;
+  const dias = document.getElementById('ruptura-dias')?.value || '7';
+  const tbody = document.getElementById('ruptura-tbody');
+  const painel = document.getElementById('ruptura-painel');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="padding:10px;color:var(--muted);text-align:center">Carregando...</td></tr>';
+  try {
+    const r = await fetch(`${API}/api/alertas/ruptura?dias=${dias}`);
+    const { alertas } = await r.json();
+    _alertasCarregando = false;
+    if (!alertas || !alertas.length) { if (painel) painel.style.display = 'none'; return; }
+    if (painel) painel.style.display = '';
+    document.getElementById('ruptura-count').textContent = `${alertas.length} produto(s) com estoque crítico`;
+    if (!tbody) return;
+    tbody.innerHTML = alertas.map(a => {
+      const emRuptura = a.em_ruptura;
+      const cor = emRuptura ? '#f87171' : a.dias_estoque <= 3 ? '#fb923c' : '#fbbf24';
+      const badge = emRuptura
+        ? `<span style="background:#f87171;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px">EM RUPTURA</span>`
+        : `<span style="background:${cor};color:#000;padding:2px 6px;border-radius:4px;font-size:10px">${a.dias_estoque.toFixed(1)} dias</span>`;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px">${a.nome || '—'}</td>
+        <td style="padding:5px 8px;color:var(--muted);font-size:11px">${a.departamento || '—'}</td>
+        <td style="padding:5px 8px;text-align:right;color:var(--muted)">${a.plu}</td>
+        <td style="padding:5px 8px;text-align:right">${a.estoque_total.toFixed(0)}</td>
+        <td style="padding:5px 8px;text-align:right">${a.venda_media_diaria.toFixed(1)}</td>
+        <td style="padding:5px 8px;text-align:right;color:${cor};font-weight:700">${emRuptura ? '0' : a.dias_estoque.toFixed(1)}</td>
+        <td style="padding:5px 8px;text-align:center">${badge}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    _alertasCarregando = false;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#f87171;text-align:center">Erro ao carregar alertas</td></tr>';
+  }
 }
 
 // ══════════════════════════════════════════════════════════
