@@ -920,6 +920,18 @@
 
 </main>
 
+<!-- Modal comparar pedido vs NF -->
+<div id="modal-pedido-nf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2100;align-items:center;justify-content:center;overflow:auto">
+  <div style="background:#161820;border:1px solid #2d2f3e;border-radius:12px;padding:28px;width:1000px;max-width:96vw;max-height:92vh;overflow-y:auto;margin:auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <span id="modal-nf-titulo" style="font-size:15px;font-weight:700;flex:1"></span>
+      <button onclick="document.getElementById('modal-pedido-nf').style.display='none'" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div id="modal-nf-resumo" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div id="modal-nf-conteudo" style="overflow-x:auto"></div>
+  </div>
+</div>
+
 <!-- Modal visualizar pedido salvo -->
 <div id="modal-pedido-ver" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center;overflow:auto">
   <div style="background:#161820;border:1px solid #2d2f3e;border-radius:12px;padding:28px;width:900px;max-width:96vw;max-height:90vh;overflow-y:auto;margin:auto">
@@ -2803,6 +2815,7 @@ async function pedidoCarregarHistorico() {
           <td style="padding:8px 10px;text-align:right;font-weight:700;color:#22c55e">R$ ${R(p.total)}</td>
           <td style="padding:8px 6px;text-align:center;display:flex;gap:6px;justify-content:center">
             <button onclick="pedidoVer(${p.id})" style="background:rgba(124,106,247,.15);border:1px solid #7c6af7;color:#a78bfa;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">👁 Ver</button>
+            <button onclick="pedidoCompararNF(${p.id})" style="background:rgba(34,197,94,.1);border:1px solid #22c55e;color:#22c55e;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">📦 NF</button>
             <button onclick="pedidoDeletar(${p.id})" style="background:rgba(239,68,68,.1);border:1px solid #ef4444;color:#ef4444;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">🗑</button>
           </td>
         </tr>`).join('')}
@@ -2865,6 +2878,58 @@ async function pedidoVer(id) {
       <div style="margin-top:16px;text-align:right;font-size:18px;font-weight:700;color:#22c55e">Total: R$ ${R(p.total)}</div>`;
   } catch(e) {
     conteudo.innerHTML = '<div style="color:#fca5a5">Erro ao carregar pedido.</div>';
+  }
+}
+
+async function pedidoCompararNF(id) {
+  const modal = document.getElementById('modal-pedido-nf');
+  const conteudo = document.getElementById('modal-nf-conteudo');
+  const resumo = document.getElementById('modal-nf-resumo');
+  modal.style.display = 'flex';
+  conteudo.innerHTML = '<div style="color:#64748b;padding:20px">Carregando...</div>';
+  resumo.innerHTML = '';
+  try {
+    const { pedido, comparativo } = await fetch(`${API}/api/pedidos/comparar?id=${id}`).then(r => r.json());
+    document.getElementById('modal-nf-titulo').textContent = `Pedido #${pedido.id} — ${pedido.forn_nome} — Comparativo com NF recebida`;
+    const ok = comparativo.filter(i => i.status === 'OK').length;
+    const naoRec = comparativo.filter(i => i.status === 'NÃO RECEBIDO').length;
+    const aMais = comparativo.filter(i => i.status === 'RECEBEU A MAIS').length;
+    const aMenos = comparativo.filter(i => i.status === 'RECEBEU A MENOS').length;
+    const cards = [
+      { label: 'Conforme', val: ok, cor: '#22c55e' },
+      { label: 'Não recebido', val: naoRec, cor: '#f87171' },
+      { label: 'Recebeu a menos', val: aMenos, cor: '#fb923c' },
+      { label: 'Recebeu a mais', val: aMais, cor: '#60a5fa' },
+    ];
+    resumo.innerHTML = cards.map(c => `<div style="background:#1a1d2e;border:1px solid #2d2f3e;border-radius:8px;padding:10px 16px;min-width:120px">
+      <div style="font-size:11px;color:#64748b">${c.label}</div>
+      <div style="font-size:20px;font-weight:700;color:${c.cor}">${c.val}</div>
+    </div>`).join('');
+    const corStatus = { 'OK': '#22c55e', 'NÃO RECEBIDO': '#f87171', 'RECEBEU A MENOS': '#fb923c', 'RECEBEU A MAIS': '#60a5fa' };
+    conteudo.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:#1a1d2e;color:#64748b;font-size:10px;text-transform:uppercase">
+        <th style="padding:8px 10px;text-align:left">Produto</th>
+        <th style="padding:8px 6px;text-align:right">PLU</th>
+        <th style="padding:8px 6px;text-align:right">Qtd Pedido</th>
+        <th style="padding:8px 6px;text-align:right">Qtd Recebida</th>
+        <th style="padding:8px 6px;text-align:right">Diferença</th>
+        <th style="padding:8px 6px;text-align:left">NFs</th>
+        <th style="padding:8px 6px;text-align:center">Status</th>
+      </tr></thead>
+      <tbody>${comparativo.map(i => `<tr style="border-bottom:1px solid #1e2235">
+        <td style="padding:7px 10px">${i.nome}</td>
+        <td style="padding:7px 6px;text-align:right;color:#64748b">${i.plu}</td>
+        <td style="padding:7px 6px;text-align:right">${i.qtd_pedido}</td>
+        <td style="padding:7px 6px;text-align:right;font-weight:700">${i.qtd_recebida}</td>
+        <td style="padding:7px 6px;text-align:right;color:${i.diferenca > 0 ? '#60a5fa' : i.diferenca < 0 ? '#fb923c' : '#64748b'}">${i.diferenca > 0 ? '+' : ''}${i.diferenca}</td>
+        <td style="padding:7px 6px;font-size:11px;color:#64748b">${i.nfs || '—'}</td>
+        <td style="padding:7px 6px;text-align:center">
+          <span style="background:${corStatus[i.status]}22;color:${corStatus[i.status]};border:1px solid ${corStatus[i.status]};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${i.status}</span>
+        </td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) {
+    conteudo.innerHTML = '<div style="color:#f87171;padding:16px">Erro ao carregar comparativo.</div>';
   }
 }
 
