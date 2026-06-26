@@ -1257,7 +1257,6 @@ const server = http.createServer(async (req, res) => {
       // Produto: lê do cache SQLite (já sincronizado pelo sync)
       const todosProd = db.getProdutos(loja) || [];
       const amostra0 = todosProd[0] || null;
-      // Tenta vários nomes de campo para PLU
       const prod = todosProd.find(p =>
         String(p.plu) === String(plu) ||
         String(p.codigo) === String(plu) ||
