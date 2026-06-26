@@ -1459,7 +1459,7 @@ const server = http.createServer(async (req, res) => {
 
     // Re-busca compras do CD para datas selecionadas (para capturar NFs lançadas após sync das 6h)
     if (pathname === '/api/transferencia/atualizar-compras' && req.method === 'POST') {
-      const body = await lerBody(req);
+      const body = JSON.parse(await readBody(req) || '{}');
       const { data_inicio, data_fim } = body;
       if (!data_inicio || !data_fim) return jRes(res, 400, { erro: 'data_inicio e data_fim obrigatórios' });
       const lojaCD = parseInt(process.env.LOJA_CD || '2');
