@@ -1249,6 +1249,24 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── Sugestão de Transferência ─────────────────────────────────────────
+    // Debug: campos brutos da Hipcom para um produto
+    if (pathname === '/api/debug/produto') {
+      const plu  = q.plu;
+      const loja = parseInt(q.loja || '1');
+      if (!plu) return jRes(res, 400, { erro: 'Informe ?plu=XXXXX' });
+      const [prods, fiscal] = await Promise.all([
+        hGetAll(`/api/hipcom/produtos?loja=${loja}`),
+        hGet(`/api/hipcom/tributacaoprodutos?loja=${loja}&plu=${plu}`).catch(() => null),
+      ]);
+      const prod = prods.find(p => String(p.plu) === String(plu));
+      return jRes(res, 200, {
+        campos_produto: prod ? Object.keys(prod) : [],
+        produto: prod || null,
+        campos_fiscal: fiscal ? Object.keys(fiscal) : [],
+        fiscal: fiscal || null,
+      });
+    }
+
     if (pathname === '/api/transferencia/debug') {
       const nf  = q.numero_nf;
       const plu = q.plu ? +q.plu : null;
