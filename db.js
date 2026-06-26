@@ -486,6 +486,11 @@ db.exec(`
   );
 `);
 
+// ── Config geral (chave/valor) ─────────────────────────────────────────────
+db.prepare(`CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT)`).run();
+function getConfig(chave) { const r = db.prepare('SELECT valor FROM config WHERE chave=?').get(chave); return r ? r.valor : null; }
+function setConfig(chave, valor) { db.prepare('INSERT OR REPLACE INTO config(chave,valor) VALUES(?,?)').run(chave, String(valor)); }
+
 function getPrazo(fornecedor) {
   return db.prepare('SELECT * FROM fornecedor_prazos WHERE fornecedor=?').get(fornecedor)
       || { fornecedor, prazo_dias:28, num_parcelas:1, intervalo_dias:7, forma_pagto:'boleto' };
@@ -511,6 +516,7 @@ module.exports = {
   salvarPedido, listarPedidos, verPedido, deletarPedido,
   registrarReajuste, listarReajustes,
   salvarTransferencia, listarTransferencias, verTransferencia,
+  getConfig, setConfig,
   getPrazo, setPrazo,
   criarUsuario, autenticarUsuario, criarSessao, getSessao, deleteSessao,
   listarUsuarios, deletarUsuario, alterarSenha,

@@ -265,11 +265,17 @@ async function rodarSync(jid, lojaId, diasHist) {
     }
     if (!faltandoC.length) jAtualiza(jid, 80, 'Compras: todas as datas já no banco ✓');
 
-    // Estoques: início e ontem (Hipcom não disponibiliza estoque do dia corrente até o fechamento)
+    // Estoques: início + últimos 3 dias sempre re-buscados (garante snapshot atualizado)
     const dataEstFim = daysAgo(1);
     jAtualiza(jid, 88, 'Sincronizando estoques...');
-    await Promise.all([loadEstoque(lojaId, dataInicio), loadEstoque(lojaId, dataEstFim)]);
+    const recentes3Est = dateRange(daysAgo(3), daysAgo(1));
+    await loadEstoque(lojaId, dataInicio); // início do histórico (cache infinito OK)
+    for (const dt of recentes3Est) {
+      const raw = await hGetAll(`/api/hipcom/estoquesprodutos?loja=${lojaId}&data=${dt}`);
+      db.setEstoque(lojaId, dt, raw); // força re-gravação mesmo se já existia
+    }
 
+    db.setConfig('ultimo_sync', today());
     jAtualiza(jid, 100, `Sincronização concluída — ${diasHist} dias`);
     j.resultado = db.getStats();
     j.done = true;
@@ -1498,27 +1504,41 @@ server.listen(PORT, () => {
 });
 
 // ── Sync automático diário às 06:00 ──────────────────────────────────────
+async function executarSyncDiario() {
+  console.log('[sync-auto] Iniciando sincronização automática das 06:00...');
+  const jid = jId();
+  jobs.set(jid, { pct: 0, etapa: 'Iniciando...', done: false, erro: null });
+  try {
+    const lojas = (await hGet('/api/hipcom/lojas')).lojas || [];
+    const lojasSync = LOJAS_ATIVAS ? lojas.filter(l => LOJAS_ATIVAS.includes(l.id)) : lojas;
+    for (const loja of lojasSync) {
+      await rodarSync(jid, loja.id);
+    }
+    console.log('[sync-auto] Sincronização automática concluída.');
+  } catch (e) {
+    console.error('[sync-auto] Erro:', e.message);
+  }
+}
+
 function agendarSyncDiario() {
-  const agora   = new Date();
+  const agora    = new Date();
   const proxExec = new Date(agora);
   proxExec.setHours(6, 0, 0, 0);
   if (proxExec <= agora) proxExec.setDate(proxExec.getDate() + 1); // já passou das 6h hoje → amanhã
   const msAte = proxExec - agora;
   console.log(`[sync-auto] Próximo sync agendado: ${proxExec.toLocaleString('pt-BR')} (em ${Math.round(msAte/60000)} min)`);
   setTimeout(async () => {
-    console.log('[sync-auto] Iniciando sincronização automática das 06:00...');
-    const jid = jId();
-    jobs.set(jid, { pct: 0, etapa: 'Iniciando...', done: false, erro: null });
-    try {
-      const lojas = (await hGet('/api/hipcom/lojas')).lojas || [];
-      const lojasSync = LOJAS_ATIVAS ? lojas.filter(l => LOJAS_ATIVAS.includes(l.id)) : lojas;
-      for (const loja of lojasSync) {
-        await rodarSync(jid, loja.id);
-      }
-      console.log('[sync-auto] Sincronização automática concluída.');
-    } catch (e) {
-      console.error('[sync-auto] Erro:', e.message);
-    }
+    await executarSyncDiario();
     agendarSyncDiario(); // reagenda para o dia seguinte
   }, msAte);
+
+  // Se o servidor reiniciou após as 6h e o sync de hoje ainda não rodou, roda agora
+  const ultimoSync = db.getConfig('ultimo_sync');
+  if (ultimoSync !== today()) {
+    const horaAtual = agora.getHours();
+    if (horaAtual >= 6) {
+      console.log(`[sync-auto] Servidor reiniciou após 06:00 e sync de hoje não rodou (último: ${ultimoSync}). Rodando agora...`);
+      executarSyncDiario().catch(e => console.error('[sync-auto] Erro no sync de recuperação:', e.message));
+    }
+  }
 }
