@@ -1249,30 +1249,26 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── Sugestão de Transferência ─────────────────────────────────────────
-    // Debug: campos brutos da Hipcom para um produto
+    // Debug: campos brutos do cache SQLite para um produto
     if (pathname === '/api/debug/produto') {
       const plu  = q.plu;
       const loja = parseInt(q.loja || '1');
       if (!plu) return jRes(res, 400, { erro: 'Informe ?plu=XXXXX' });
-      // Busca produto direto pelo PLU (sem paginar tudo)
-      const [prodResp, fiscalResp] = await Promise.all([
-        hGet(`/api/hipcom/produtos?loja=${loja}&plu=${plu}`).catch(() => null),
-        hPost('/api/fiscal/consultarproduto', { loja, codigo: parseInt(plu) }).catch(() => null),
-      ]);
-      // Tenta diferentes estruturas de resposta
-      const prodArr = prodResp
-        ? (prodResp.produtos || prodResp.data || (Array.isArray(prodResp) ? prodResp : [prodResp]))
-        : [];
-      const prod = prodArr.find(p => String(p.plu) === String(plu)) || prodArr[0] || null;
-      const fiscalArr = fiscalResp ? (unwrap(fiscalResp) || []) : [];
-      const fiscal = fiscalArr[0] || null;
+      // Produto: lê do cache SQLite (já sincronizado pelo sync)
+      const todosProd = db.getProdutos(loja) || [];
+      const prod = todosProd.find(p => String(p.plu) === String(plu)) || null;
+      // Fiscal: lê do cache SQLite
+      const fiscal = db.getFiscal(loja, parseInt(plu));
+      // prod_emb: campos extras armazenados
+      const embRow = db.getProdEmb(plu);
       return jRes(res, 200, {
+        fonte: 'sqlite_cache',
         campos_produto: prod ? Object.keys(prod) : [],
-        produto: prod || null,
+        produto: prod,
         campos_fiscal: fiscal ? Object.keys(fiscal) : [],
-        fiscal: fiscal || null,
-        raw_prod_resp: prodResp,
-        raw_fiscal_resp: fiscalResp,
+        fiscal: fiscal,
+        prod_emb: embRow,
+        total_produtos_na_loja: todosProd.length,
       });
     }
 
