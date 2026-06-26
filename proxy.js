@@ -1457,6 +1457,22 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { transferencia: t });
     }
 
+    // Re-busca compras do CD para datas selecionadas (para capturar NFs lançadas após sync das 6h)
+    if (pathname === '/api/transferencia/atualizar-compras' && req.method === 'POST') {
+      const body = await lerBody(req);
+      const { data_inicio, data_fim } = body;
+      if (!data_inicio || !data_fim) return jRes(res, 400, { erro: 'data_inicio e data_fim obrigatórios' });
+      const lojaCD = parseInt(process.env.LOJA_CD || '2');
+      const datas = dateRange(data_inicio, data_fim);
+      let atualizadas = 0;
+      for (const dt of datas) {
+        const c = await hGetAll(`/api/hipcom/comprasprodutos?loja=${lojaCD}&data=${dt}`);
+        db.setCompras(lojaCD, dt, c);
+        atualizadas++;
+      }
+      return jRes(res, 200, { ok: true, datas_atualizadas: atualizadas });
+    }
+
     jRes(res, 404, { erro: 'Rota não encontrada: ' + pathname });
   } catch (err) {
     console.error('[ERRO]', err.message);

@@ -879,6 +879,7 @@
           <input type="date" id="transf-data-fim" style="padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px"/>
         </label>
         <button class="btn-primary" onclick="transfBuscarNFs()" style="padding:8px 20px;font-size:13px">🔍 Buscar NFs</button>
+        <button class="btn-secondary" onclick="transfAtualizarNFs()" id="btn-atualizar-nfs" style="padding:8px 20px;font-size:13px;margin-left:8px" title="Re-busca compras do CD na Hipcom para as datas selecionadas">🔄 Atualizar NFs do CD</button>
       </div>
     </div>
 
@@ -1906,6 +1907,30 @@ async function transfBuscarNFs() {
     </div>`).join('');
 
   document.getElementById('transf-nfs-wrap').style.display = 'block';
+}
+
+async function transfAtualizarNFs() {
+  const ini = document.getElementById('transf-data-ini').value;
+  const fim = document.getElementById('transf-data-fim').value;
+  if (!ini || !fim) return alert('Selecione o período primeiro.');
+  const btn = document.getElementById('btn-atualizar-nfs');
+  btn.disabled = true;
+  btn.textContent = '⏳ Atualizando...';
+  try {
+    const r = await fetch('/api/transferencia/atualizar-compras', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data_inicio: ini, data_fim: fim })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || 'Erro');
+    btn.textContent = `✅ ${d.datas_atualizadas} datas atualizadas`;
+    await transfBuscarNFs();
+  } catch (e) {
+    alert('Erro ao atualizar: ' + e.message);
+    btn.textContent = '🔄 Atualizar NFs do CD';
+  } finally {
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Atualizar NFs do CD'; }, 3000);
+  }
 }
 
 async function transfAnalisarNF(nf) {
