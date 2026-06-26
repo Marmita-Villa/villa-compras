@@ -1048,10 +1048,11 @@ function regimeBadge(ncm_info) {
 
 // ── Detalhe fiscal expandido ───────────────────────────────────────────────
 function renderDetalhe(d, idx) {
-  const f   = d.fiscal;
-  const ca  = f.cenario_atual;
-  const ant = f.cenario_anterior;
-  const ref = f.cenarios_reforma;
+  const f    = d.fiscal;
+  const ca   = f.cenario_atual;
+  const ant  = f.cenario_anterior;
+  const ref  = f.cenarios_reforma;
+  const stA  = f.st_analise;
   const ni  = f.ncm_info;
 
   const boxFiscalAtual = `
@@ -1085,57 +1086,107 @@ function renderDetalhe(d, idx) {
       `:''}
     </div>`;
 
-  // Cálculo de ST retida pelo fornecedor (se não repassou o desconto)
-  const _aliqST   = ant ? (ant.custo_hipcom / f.custo_hipcom - 1) : 0.12;
-  const _custoJusto   = f.custo_hipcom / (1 + _aliqST);          // o que deveria cobrar
-  const _stRetidaUnit = f.custo_hipcom - _custoJusto;             // retido por unidade
-  const _stRetidaPct  = (_stRetidaUnit / f.custo_hipcom * 100);   // % sobre custo atual
-  const _margemJusta  = ca.margem_liquida != null && f.preco_venda > 0
-    ? ((f.preco_venda - _custoJusto * (ca.custo_real / f.custo_hipcom) - ca.tot_imp_saida) / f.preco_venda * 100)
-    : null;
+  // ST retida (fallback para quando st_analise não disponível)
+  const _aliqST       = ant ? (ant.custo_hipcom / f.custo_hipcom - 1) : 0.12;
+  const _custoJusto   = f.custo_hipcom / (1 + _aliqST);
+  const _stRetidaUnit = f.custo_hipcom - _custoJusto;
+  const _stRetidaPct  = (_stRetidaUnit / f.custo_hipcom * 100);
+
+  function stBlocoRow(label, val, opts={}) {
+    const cl = opts.color ? `color:${opts.color}` : '';
+    const fw = opts.bold ? 'font-weight:700' : '';
+    const style = [cl,fw].filter(Boolean).join(';');
+    return `<div class="detail-row"><span class="k">${label}</span><span class="v" style="${style}">${val}</span></div>`;
+  }
 
   const boxAnterior = ant ? `
     <div class="detail-box" style="border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.05)">
-      <h4 style="color:#fca5a5">🔴 ST Removida — Análise de Repasse</h4>
+      <h4 style="color:#fca5a5">🔴 ST Removida — Análise Completa</h4>
       <div style="font-size:11px;color:#fca5a5;margin-bottom:12px">
         ${ni&&ni.st_portaria?'📄 '+ni.st_portaria:''}
         ${ni&&ni.st_data_remocao?' · Vigência: <strong>'+ni.st_data_remocao+'</strong>':''}
+        ${ni&&ni.alerta?'<br><span style="font-size:10px">'+ni.alerta+'</span>':''}
       </div>
 
-      <!-- Bloco ST Retida -->
-      <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">⚠ Se o fornecedor NÃO repassou o desconto</div>
-        <div class="detail-row"><span class="k">Custo cobrado (Hipcom)</span><span class="v"><strong>R$ ${R(f.custo_hipcom)}</strong></span></div>
-        <div class="detail-row"><span class="k">Custo justo sem ST (${R(_aliqST*100,1)}%)</span><span class="v" style="color:#22c55e"><strong>R$ ${R(_custoJusto)}</strong></span></div>
-        <div class="detail-row"><span class="k" style="color:#fca5a5"><strong>ST retida por unidade</strong></span><span class="v" style="color:#fca5a5;font-size:15px"><strong>R$ ${R(_stRetidaUnit)} (${R(_stRetidaPct,1)}%)</strong></span></div>
-        ${d.qtd_comprar > 0 ? `<div class="detail-row" style="margin-top:4px"><span class="k" style="color:#fca5a5">ST retida no pedido (${d.qtd_comprar} un)</span><span class="v" style="color:#fca5a5;font-weight:700">R$ ${R(_stRetidaUnit * d.qtd_comprar)}</span></div>` : ''}
+      ${stA ? `
+      <!-- BLOCO A: Regime Antigo (com ST) -->
+      <div style="background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.3);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">A · Regime Antigo (com ST)</div>
+        ${stBlocoRow('Custo com ST estimado','<strong>R$ '+R(stA.c_com_st_estimado)+'</strong>')}
+        ${stBlocoRow('ICMS pagar saída (CST 60)','R$ 0,00',{color:'#94a3b8'})}
+        ${stBlocoRow('PIS/COFINS débito saída','–R$ '+R(stA.bloco_a.pc_debito),{color:'var(--danger)'})}
+        ${stBlocoRow('(+) Créd. PIS/COF Lei 14.592/23','+R$ '+R(stA.bloco_a.pc_credito_lei14592),{color:'var(--ok)'})}
+        ${stBlocoRow('PIS/COFINS líquido','–R$ '+R(stA.bloco_a.pc_liquido),{color:'var(--danger)'})}
         <div class="detail-sep"></div>
-        <div class="detail-row"><span class="k">Margem atual (custo alto)</span><span class="v" style="color:${margemColor(ca.margem_liquida)}">${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</span></div>
-        <div class="detail-row"><span class="k">Margem justa (custo correto)</span><span class="v" style="color:${margemColor(_margemJusta)}"><strong>${_margemJusta!=null?R(_margemJusta,1)+'%':'—'}</strong></span></div>
-        ${_margemJusta!=null&&ca.margem_liquida!=null?`<div class="detail-row"><span class="k">Ganho de margem possível</span><span class="v" style="color:#22c55e;font-weight:700">+${R(_margemJusta-ca.margem_liquida,1)} p.p.</span></div>`:''}
+        ${stBlocoRow('<strong>Margem líquida anterior</strong>','<strong>'+R(stA.margem_anterior,1)+'%</strong>',{color:margemColor(stA.margem_anterior)})}
       </div>
+
+      <!-- BLOCO B: C_MAX -->
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#fbbf24;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">B · Custo Máximo Novo Regime (para manter ${R(stA.margem_anterior,1)}%)</div>
+        ${stBlocoRow('ICMS débito saída ('+R(stA.alq_icms_saida,1)+'%)','–R$ '+R(stA.bloco_b.icms_debito),{color:'var(--danger)'})}
+        ${stBlocoRow('(–) Créd. ICMS entrada ('+R(stA.alq_icms_entrada,1)+'%)','+R$ '+R(stA.bloco_b.icms_credito),{color:'var(--ok)'})}
+        ${stBlocoRow('ICMS líquido','–R$ '+R(stA.bloco_b.icms_liquido),{color:'var(--danger)'})}
+        ${stBlocoRow('Base PIS/COFINS (P×(1−'+R(stA.alq_icms_saida,1)+'%))','R$ '+R(stA.bloco_b.base_pc))}
+        ${stBlocoRow('PIS/COFINS débito','–R$ '+R(stA.bloco_b.pc_debito),{color:'var(--danger)'})}
+        ${stBlocoRow('(+) Créd. PIS/COF entrada','+R$ '+R(stA.bloco_b.pc_credito),{color:'var(--ok)'})}
+        <div class="detail-sep"></div>
+        <div class="detail-row" style="background:rgba(251,191,36,.12);border-radius:6px;padding:6px 4px;margin:4px 0">
+          <span class="k" style="color:#fbbf24;font-weight:700">⭐ C_MAX — Custo máximo</span>
+          <span class="v" style="color:#fbbf24;font-size:16px;font-weight:800">R$ ${R(stA.c_max)}</span>
+        </div>
+        ${stBlocoRow('Margem resultante verificada',R(stA.bloco_b.margem_resultante,1)+'% ✓',{color:margemColor(stA.bloco_b.margem_resultante)})}
+      </div>
+
+      <!-- BLOCO C: Custo proposto atual -->
+      <div style="background:${stA.bloco_c.ok?'rgba(34,197,94,.06)':'rgba(239,68,68,.1)'};border:1px solid ${stA.bloco_c.ok?'rgba(34,197,94,.3)':'rgba(239,68,68,.4)'};border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:${stA.bloco_c.ok?'#22c55e':'#fca5a5'};margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">C · Custo Proposto (atual cadastrado)</div>
+        ${stBlocoRow('Custo sem ST (Hipcom atual)','<strong>R$ '+R(stA.c_sem_st)+'</strong>')}
+        ${stBlocoRow('ICMS débito saída','–R$ '+R(stA.bloco_c.icms_debito),{color:'var(--danger)'})}
+        ${stBlocoRow('(–) Créd. ICMS entrada','+R$ '+R(stA.bloco_c.icms_credito),{color:'var(--ok)'})}
+        ${stBlocoRow('ICMS líquido','–R$ '+R(stA.bloco_c.icms_liquido),{color:'var(--danger)'})}
+        ${stBlocoRow('PIS/COFINS líquido','–R$ '+R(stA.bloco_c.pc_liquido),{color:'var(--danger)'})}
+        <div class="detail-sep"></div>
+        <div class="detail-row" style="background:${stA.bloco_c.ok?'rgba(34,197,94,.12)':'rgba(239,68,68,.15)'};border-radius:6px;padding:6px 4px;margin:4px 0">
+          <span class="k" style="color:${stA.bloco_c.ok?'#22c55e':'#fca5a5'};font-weight:700">Margem resultante ${stA.bloco_c.ok?'✓':'✗'}</span>
+          <span class="v" style="color:${margemColor(stA.margem_atual)};font-size:16px;font-weight:800">${R(stA.margem_atual,1)}%</span>
+        </div>
+        ${stA.variacao_margem!=null?`<div class="detail-row"><span class="k">Variação vs regime antigo</span><span class="v" style="color:${stA.variacao_margem>=0?'var(--ok)':'var(--danger)'}">
+          ${stA.variacao_margem>=0?'+':''}${R(stA.variacao_margem,1)} p.p.</span></div>`:''}
+      </div>
+
+      ${!stA.bloco_c.ok ? `
+      <!-- Alerta custo acima do máximo -->
+      <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.5);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#fca5a5;margin-bottom:6px">⚠ CUSTO ACIMA DO MÁXIMO PERMITIDO</div>
+        <div style="font-size:11px;color:#e2e8f0;line-height:1.6">
+          Custo atual <strong>R$ ${R(stA.c_sem_st)}</strong> excede o C_MAX de <strong style="color:#fbbf24">R$ ${R(stA.c_max)}</strong>
+          (diferença de <strong style="color:#fca5a5">R$ ${R(stA.c_sem_st - stA.c_max)}/un</strong>).
+          ${d.qtd_comprar>0?'No pedido de '+d.qtd_comprar+' unidades, impacto de <strong>R$ '+R((stA.c_sem_st - stA.c_max)*d.qtd_comprar)+'</strong>.':''}
+        </div>
+      </div>` : ''}
 
       <!-- Argumento de negociação -->
-      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:700;color:#fbbf24;margin-bottom:6px">💬 ARGUMENTO PARA NEGOCIAÇÃO</div>
+      <div style="background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.3);border-radius:8px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:6px">💬 ARGUMENTO PARA NEGOCIAÇÃO</div>
         <div style="font-size:11px;color:#e2e8f0;line-height:1.6">
           "Esse produto saiu da ST em SP${ni&&ni.st_portaria?' ('+ni.st_portaria+')':''}.
-          Com ST o custo estimado era <strong>R$ ${R(ant.custo_hipcom)}</strong>.
-          Sem ST o justo é <strong>R$ ${R(_custoJusto)}</strong>.
-          Vocês continuam cobrando <strong>R$ ${R(f.custo_hipcom)}</strong> —
-          isso representa <strong>R$ ${R(_stRetidaUnit)}/un</strong> que deveria ter sido repassado.${d.qtd_comprar>0?' No pedido de '+d.qtd_comprar+' unidades, o impacto é de R$ '+R(_stRetidaUnit*d.qtd_comprar)+'.':''}"
+          Para manter a margem de ${R(stA.margem_anterior,1)}% que tínhamos antes,
+          o custo máximo sem ST é <strong style="color:#fbbf24">R$ ${R(stA.c_max)}</strong>.
+          Vocês estão cobrando <strong>R$ ${R(stA.c_sem_st)}</strong>${!stA.bloco_c.ok?' — acima do permitido':' — dentro do esperado'}.${d.qtd_comprar>0&&!stA.bloco_c.ok?' No pedido de '+d.qtd_comprar+' unidades, o excesso é R$ '+R((stA.c_sem_st - stA.c_max)*d.qtd_comprar)+'.':''}"
         </div>
       </div>
-
-      <!-- Cenário anterior resumido -->
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600">COMPARATIVO DE MARGEM</div>
-      <div class="detail-row"><span class="k">Margem antes da remoção ST</span><span class="v" style="color:${margemColor(ant.margem_liquida)}">${ant.margem_liquida!=null?R(ant.margem_liquida,1)+'%':'—'}</span></div>
-      <div class="detail-row"><span class="k">Margem atual (custo não ajustado)</span><span class="v" style="color:${margemColor(ca.margem_liquida)}"><strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong></span></div>
-      <div class="detail-row"><span class="k">Variação</span>
-        <span class="v" style="color:${ant.margem_liquida!=null&&ca.margem_liquida!=null&&(ca.margem_liquida-ant.margem_liquida)>=0?'var(--ok)':'var(--danger)'}">
-          ${ant.margem_liquida!=null&&ca.margem_liquida!=null?(ca.margem_liquida-ant.margem_liquida>=0?'+':'')+R(ca.margem_liquida-ant.margem_liquida,1)+'p.p.':'—'}
-        </span>
+      ` : `
+      <!-- Fallback sem stAnalise -->
+      <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">⚠ Se o fornecedor NÃO repassou o desconto</div>
+        ${stBlocoRow('Custo cobrado (Hipcom)','<strong>R$ '+R(f.custo_hipcom)+'</strong>')}
+        ${stBlocoRow('Custo justo sem ST ('+R(_aliqST*100,1)+'%)','<strong>R$ '+R(_custoJusto)+'</strong>',{color:'#22c55e'})}
+        ${stBlocoRow('<strong>ST retida por unidade</strong>','<strong>R$ '+R(_stRetidaUnit)+' ('+R(_stRetidaPct,1)+'%)</strong>',{color:'#fca5a5'})}
       </div>
+      <div class="detail-row"><span class="k">Margem antes da remoção ST</span><span class="v" style="color:${margemColor(ant.margem_liquida)}">${ant.margem_liquida!=null?R(ant.margem_liquida,1)+'%':'—'}</span></div>
+      <div class="detail-row"><span class="k">Margem atual</span><span class="v" style="color:${margemColor(ca.margem_liquida)}"><strong>${ca.margem_liquida!=null?R(ca.margem_liquida,1)+'%':'—'}</strong></span></div>
+      `}
     </div>` : `
     <div class="detail-box">
       <h4>📜 NCM · Portaria</h4>
@@ -1653,12 +1704,14 @@ function formatarDataLocal(iso) {
 
 // ── Alertas topo ───────────────────────────────────────────────────────────
 function renderAlertas() {
-  const stRem  = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='ST_REMOVIDA'));
-  const divCST = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='DIVERGENCIA_CST'));
-  const semNCM = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='SEM_NCM'));
+  const stRem    = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='ST_REMOVIDA'));
+  const custoMax = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='CUSTO_ACIMA_MAXIMO'));
+  const divCST   = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='DIVERGENCIA_CST'));
+  const semNCM   = DADOS.filter(d=>d.alertas&&d.alertas.some(a=>a.tipo==='SEM_NCM'));
   const el = document.getElementById('alertas-topo');
   let html = '';
-  if (stRem.length) html += `<div class="alerta-card danger"><div class="ico">🔴</div><div class="txt"><strong>${stRem.length} produto(s) com ST REMOVIDA</strong>O regime fiscal mudou — o custo de compra e a margem podem estar incorretos. Expanda cada produto para ver o impacto real.</div></div>`;
+  if (custoMax.length) html += `<div class="alerta-card danger"><div class="ico">🚨</div><div class="txt"><strong>${custoMax.length} produto(s) com custo ACIMA DO C_MAX</strong>ST removida mas o fornecedor não repassou o desconto — custo atual supera o máximo para manter a margem. Expanda cada produto para ver C_MAX e argumento de negociação.</div></div>`;
+  else if (stRem.length) html += `<div class="alerta-card danger"><div class="ico">🔴</div><div class="txt"><strong>${stRem.length} produto(s) com ST REMOVIDA</strong>O regime fiscal mudou — o custo de compra e a margem podem estar incorretos. Expanda cada produto para ver o impacto real.</div></div>`;
   if (divCST.length) html += `<div class="alerta-card warn"><div class="ico">⚠️</div><div class="txt"><strong>${divCST.length} produto(s) com divergência de CST</strong>O CST registrado na Hipcom não confere com a tabela NCM. Verifique com o contador.</div></div>`;
   if (semNCM.length) html += `<div class="alerta-card info"><div class="ico">ℹ️</div><div class="txt"><strong>${semNCM.length} produto(s) sem NCM cadastrado</strong>Sem NCM não é possível validar o regime fiscal. Cadastre o NCM na Hipcom.</div></div>`;
   el.innerHTML = html;
@@ -2759,14 +2812,15 @@ function pedidoCarregarAnalise() {
     status:       d.status,
     st_removida:  d.fiscal?.ncm_info?.st_removida ?? false,
     alq_icms:     d.fiscal?.cenario_atual?.alq_icms_entrada ?? 12,
-    custo_justo_sem_st: d.fiscal?.ncm_info?.st_removida
+    c_max_st:     d.fiscal?.st_analise?.c_max ?? null,
+    margem_anterior_st: d.fiscal?.st_analise?.margem_anterior ?? null,
+    custo_justo_sem_st: d.fiscal?.st_analise?.c_max ?? (d.fiscal?.ncm_info?.st_removida
       ? (() => {
-          // custo_NF / (1 - alq_entrada): fornecedor recolhe ICMS por dentro
-          const custoNF  = d.fiscal?.custo_nf_ultimo || d.fiscal?.custo_hipcom || 0;
-          const alq      = (d.fiscal?.cenario_atual?.alq_icms_entrada || 12) / 100;
+          const custoNF = d.fiscal?.custo_nf_ultimo || d.fiscal?.custo_hipcom || 0;
+          const alq = (d.fiscal?.cenario_atual?.alq_icms_entrada || 12) / 100;
           return alq < 1 && custoNF > 0 ? +(custoNF / (1 - alq)).toFixed(4) : null;
         })()
-      : null,
+      : null),
   }));
 
   pedidoRenderTabela();
@@ -2851,24 +2905,25 @@ function pedidoUpdateItem(i, campo, val) {
 function verificarAlertaSTItem(it) {
   if (!it.st_removida || it.custo_justo_sem_st == null) return;
   if (it.custo_negoc <= it.custo_justo_sem_st * 1.005) return; // tolerância 0.5%
-  const alq    = it.alq_icms || 12;
-  const justo  = it.custo_justo_sem_st;
+  const alq     = it.alq_icms || 12;
+  const justo   = it.custo_justo_sem_st; // c_max quando disponível
   const cobrado = it.custo_negoc;
-  const diff   = cobrado - justo;
+  const diff    = cobrado - justo;
   const diffPct = (diff / justo * 100).toFixed(1);
-  const qtd    = it.qtd_pedido || 0;
+  const qtd     = it.qtd_pedido || 0;
   const impacto = (diff * qtd).toFixed(2);
   const brl = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+  const margRef = it.margem_anterior_st != null ? ` (para manter a margem de ${it.margem_anterior_st.toFixed(1)}%)` : '';
 
   document.getElementById('popup-st-nome').textContent    = it.nome;
   document.getElementById('popup-st-cobrado').textContent = brl(cobrado);
-  document.getElementById('popup-st-justo').textContent   = brl(justo);
+  document.getElementById('popup-st-justo').textContent   = brl(justo) + (it.c_max_st != null ? ' — C_MAX' : '');
   document.getElementById('popup-st-alq').textContent     = alq + '%';
   document.getElementById('popup-st-diff').textContent    = brl(diff) + ' (' + diffPct + '% a mais)';
   document.getElementById('popup-st-qtd').textContent     = qtd + ' un';
   document.getElementById('popup-st-impacto').textContent = brl(impacto);
   document.getElementById('popup-st-argumento').textContent =
-    `"${it.nome.split(' ').slice(0,4).join(' ')} saiu da ST em SP. O custo justo é ${brl(justo)}. Vocês estão cobrando ${brl(cobrado)} — ${brl(diff)}/un a mais que o esperado. No pedido de ${qtd} unidades, o impacto é de ${brl(impacto)}."`;
+    `"${it.nome.split(' ').slice(0,4).join(' ')} saiu da ST em SP. O custo máximo${margRef} é ${brl(justo)}. Vocês estão cobrando ${brl(cobrado)} — ${brl(diff)}/un acima do máximo. No pedido de ${qtd} unidades, o impacto é de ${brl(impacto)}."`;
   document.getElementById('popup-st-overlay').style.display = 'flex';
 }
 
