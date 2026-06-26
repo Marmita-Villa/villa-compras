@@ -658,19 +658,24 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
 
     jAtualiza(jid, 10, `${plus.length} produtos na NF. Carregando dados...`);
 
-    const lojaIds   = [LOJA_CD, ...lojaVenda];
-    const todosProd = await loadProdutos(lojaRef);
-    const prodMap   = {};
-    todosProd.forEach(p => { prodMap[p.plu] = p; });
+    const lojaIds = [LOJA_CD, ...lojaVenda];
+    const prodMap = {};
 
-    // Preenche prodMap com produtos fora da rentabilidade via cache local
+    // Usa prod_emb (banco local) para os PLUs da NF — sem chamar Hipcom
     const embMap = db.getProdEmbMap();
     plus.forEach(plu => {
-      if (!prodMap[plu] && embMap[String(plu)]) {
-        const e = embMap[String(plu)];
-        prodMap[plu] = { plu, descricao: e.descricao, ncm: e.ncm, departamento: e.departamento, valor_produto: e.valor_produto, custo: e.custo_unit, qtd_embalagem: e.qtd_embalagem };
-      }
+      const e = embMap[String(plu)];
+      if (e) prodMap[plu] = { plu, descricao: e.descricao, ncm: e.ncm, departamento: e.departamento, valor_produto: e.valor_produto, custo: e.custo_unit, qtd_embalagem: e.qtd_embalagem };
     });
+
+    // Para PLUs não encontrados no cache local, busca na Hipcom (raro)
+    const plusFaltando = plus.filter(plu => !prodMap[plu]);
+    let todosProdHipcom = [];
+    if (plusFaltando.length > 0) {
+      jAtualiza(jid, 12, `Buscando ${plusFaltando.length} produtos não cadastrados no cache...`);
+      todosProdHipcom = await loadProdutos(lojaRef);
+      todosProdHipcom.forEach(p => { if (!prodMap[p.plu]) prodMap[p.plu] = p; });
+    }
 
     // Usa todo o histórico disponível no banco (DIAS_HIST) para estimar vendas
     const diasHist   = DIAS_HIST;
@@ -680,7 +685,7 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
     const dataEstFim = daysAgo(1);
 
     const custoMap = db.getCustoMap();
-    todosProd.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
+    todosProdHipcom.forEach(p => { if (p.custo > 0) custoMap[String(p.plu)] = parseFloat(p.custo); });
 
     jAtualiza(jid, 35, 'Lendo vendas e estoques no banco...');
     const vendasPorLoja = {};
@@ -708,8 +713,8 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
       snaps.forEach(e => { estPorLoja[lid][e.plu] = parseFloat(e.quantidade_total || 0); });
     }
 
-    // Estoque em tempo real da lojaRef
-    todosProd.forEach(p => { estPorLoja[lojaRef][p.plu] = parseFloat(p.qtd_estoque_atual || 0); });
+    // Estoque em tempo real da lojaRef (apenas os PLUs da NF, vindos do Hipcom se disponível)
+    todosProdHipcom.forEach(p => { if (plus.includes(p.plu)) estPorLoja[lojaRef][p.plu] = parseFloat(p.qtd_estoque_atual || 0); });
 
     jAtualiza(jid, 75, 'Calculando distribuição...');
 
