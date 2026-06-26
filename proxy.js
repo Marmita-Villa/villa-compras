@@ -762,13 +762,12 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
         transfs[iMax].qtd += Math.floor(sobra / qtdEmb) * qtdEmb;
       }
 
-      // 5. Lojas com estoque zero têm garantia de pelo menos 1 embalagem se houver disponível
-      let dispExtra = disponivel;
+      // 5. Lojas com estoque zero têm garantia de pelo menos 1 embalagem se houver sobra real
+      let dispExtra = disponivel - transfs.reduce((s, t) => s + t.qtd, 0);
       for (const t of transfs) {
         if (t.estoque_loja === 0 && t.qtd === 0 && dispExtra >= qtdEmb) {
           t.qtd = qtdEmb; dispExtra -= qtdEmb;
         }
-        dispExtra -= t.qtd;
       }
 
       const totalTransf = transfs.filter(t => t.qtd > 0).reduce((s, t) => s + t.qtd, 0);
