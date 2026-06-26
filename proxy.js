@@ -1256,13 +1256,21 @@ const server = http.createServer(async (req, res) => {
       if (!plu) return jRes(res, 400, { erro: 'Informe ?plu=XXXXX' });
       // Produto: lê do cache SQLite (já sincronizado pelo sync)
       const todosProd = db.getProdutos(loja) || [];
-      const prod = todosProd.find(p => String(p.plu) === String(plu)) || null;
+      const amostra0 = todosProd[0] || null;
+      const prod = todosProd.find(p =>
+        String(p.plu) === String(plu) ||
+        String(p.codigo) === String(plu) ||
+        String(p.id) === String(plu) ||
+        String(p.cod_produto) === String(plu)
+      ) || null;
       // Fiscal: lê do cache SQLite
       const fiscal = db.getFiscal(loja, parseInt(plu));
       // prod_emb: campos extras armazenados
       const embRow = db.getProdEmb(plu);
       return jRes(res, 200, {
         fonte: 'sqlite_cache',
+        campos_primeiro_produto: amostra0 ? Object.keys(amostra0) : [],
+        amostra_primeiro_produto: amostra0,
         campos_produto: prod ? Object.keys(prod) : [],
         produto: prod,
         campos_fiscal: fiscal ? Object.keys(fiscal) : [],
