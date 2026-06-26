@@ -735,8 +735,10 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
       const totalVendas = porLoja.reduce((s, l) => s + l.venda_total, 0);
       const pesos = porLoja.map(l => totalVendas > 0 ? l.venda_total / totalVendas : 1 / porLoja.length);
 
-      // 2. Quantidade disponível para distribuir = estoque do CD
-      let disponivel = Math.floor(estCD / qtdEmb) * qtdEmb;
+      // 2. Quantidade disponível para distribuir = estoque do CD + NF recém recebida
+      // (snapshot do CD pode estar desatualizado se o sync rodou antes da NF chegar)
+      const totalCD = estCD + qtdRecebidaCD;
+      let disponivel = Math.floor(totalCD / qtdEmb) * qtdEmb;
 
       // 3. Calcula sugestão proporcional
       const transfs = [];
@@ -765,9 +767,9 @@ async function rodarAnaliseTransferencia(jid, nfRef) {
       }
 
       const totalTransf = transfs.filter(t => t.qtd > 0).reduce((s, t) => s + t.qtd, 0);
-      const sobraCD     = estCD - totalTransf;
+      const sobraCD     = totalCD - totalTransf;
 
-      const status = estCD === 0 ? 'SEM ESTOQUE CD'
+      const status = totalCD === 0 ? 'SEM ESTOQUE CD'
                    : totalTransf === 0 ? 'CD OK — SEM DEMANDA'
                    : 'TRANSFERIR';
 
