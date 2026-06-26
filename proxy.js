@@ -464,11 +464,13 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
       const ca      = calcLucroReal(custo, preco, fRaw, ncmInfo);
 
       let cAntes = null;
+      let stAnalise = null;
       if (ncmInfo && ncmInfo.icms_sp && ncmInfo.icms_sp.st_removida) {
         const custoComST = custo * (1 + (ncmInfo.icms_sp.aliq || 12) / 100);
         const fAntes     = fRaw ? { ...fRaw, icmsCstSaida: '60', icmsAlqEntrada: 0, icmsAlqSaida: 0 } : null;
         cAntes = calcLucroReal(custoComST, preco, fAntes, ncmInfo);
         cAntes.nota = 'Estimativa com ST ativa';
+        stAnalise = calcAnaliseSTRemovida(custo, preco, fRaw, ncmInfo);
       }
       const reforma = calcReforma(custo, preco, ncmInfo, ca);
 
@@ -561,8 +563,13 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
         && status !== 'SEM GIRO'  && status !== 'ABAIXO DO CUSTO';
 
       const alertas = [];
-      if (ncmInfo?.icms_sp?.st_removida)
+      if (ncmInfo?.icms_sp?.st_removida) {
         alertas.push({ tipo: 'ST_REMOVIDA', msg: ncmInfo.icms_sp.alerta });
+        if (stAnalise?.alerta === 'CUSTO_ACIMA_MAXIMO')
+          alertas.push({ tipo: 'CUSTO_ACIMA_MAXIMO', msg: `Custo atual R$ ${stAnalise.c_sem_st?.toFixed(2)} excede C_MAX R$ ${stAnalise.c_max?.toFixed(2)} — negocie redução para manter margem de ${stAnalise.margem_anterior?.toFixed(1)}%.` });
+        else if (stAnalise?.alerta === 'MARGEM_CRITICA')
+          alertas.push({ tipo: 'MARGEM_CRITICA', msg: `Margem atual ${stAnalise.margem_atual?.toFixed(1)}% está crítica após remoção ST.` });
+      }
       if (ca.regime_pis_cofins === 'monofasico')
         alertas.push({ tipo: 'MONOFASICO', msg: 'PIS/COFINS monofásico — sem crédito/débito no varejo.' });
       if (ca.regime_pis_cofins === 'isento')
@@ -610,6 +617,7 @@ async function rodarAnalise(jid, lojas, fornecedorId, diasAnalise, diasAbast, to
             return melhorCusto > 0 ? +melhorCusto.toFixed(4) : null;
           })(),
           cenario_atual: ca, cenario_anterior: cAntes, cenarios_reforma: reforma,
+          st_analise: stAnalise,
           ncm_info: ncmInfo ? {
             descricao: ncmInfo.descricao, categoria: ncmInfo.categoria,
             regime_pis_cofins: ca.regime_pis_cofins,
@@ -847,6 +855,120 @@ function calcLucroReal(custo, preco, f, ncmInfo) {
     margem_bruta:   preco>0 ? +((preco-custo)/preco*100).toFixed(2) : null,
     margem_liquida: ml!=null ? +ml.toFixed(2) : null,
     preco_min_30: p30 ? +p30.toFixed(4) : null, preco_min_35: p35 ? +p35.toFixed(4) : null,
+  };
+}
+
+// Análise completa da remoção de ST (Lei 14.592/23)
+// Blocos A (regime antigo), B (C_MAX para manter margem), C (custo atual proposto)
+function calcAnaliseSTRemovida(custoAtual, preco, f, ncmInfo) {
+  if (!f || !preco || preco === 0 || !custoAtual || custoAtual === 0) return null;
+
+  const alqS  = parseFloat(f.icmsAlqSaida      || 0) / 100;  // ICMS saída
+  const alqB  = parseFloat(f.icmsAlqEntrada     || 0) / 100;  // ICMS entrada
+  const alqPS = (parseFloat(f.pisAlqSaida || 0) + parseFloat(f.cofinsAlqSaida   || 0)) / 100; // PIS+COFINS saída
+  const alqPE = (parseFloat(f.pisAlqEntrada||0) + parseFloat(f.cofinsAliqEntrada || 0)) / 100; // PIS+COFINS entrada
+  const alqFcp = parseFloat(f.fcp || 0) / 100;
+
+  // C_SEM_ST = custo atual (ST foi removida, fornecedor já cobra sem ST)
+  const cSemST = custoAtual;
+  // C_COM_ST estimado: custo × (1 + alq_st) — alq_st vem da tabela NCM ou ICMS entrada
+  const alqST  = (ncmInfo?.icms_sp?.aliq || parseFloat(f.icmsAlqEntrada || 0));
+  const cComST = cSemST * (1 + alqST / 100);
+
+  // BASE PIS/COFINS saída (ICMS excluído da base conforme ICMS 35/2011)
+  const basePcSaida = preco * (1 - alqS);
+
+  // ── BLOCO A: Regime Antigo (com ST) ─────────────────────────────
+  // CST 60: ICMS = 0 na saída, ST pago pelo fornecedor (incluso no cComST)
+  const pcDebA   = basePcSaida * alqPS;
+  // Crédito PIS/COFINS Lei 14.592/23: C_SEM_ST × (1 − alq_icms_entrada) × alq_pc_entrada
+  const pcCredA  = cSemST * (1 - alqB) * alqPE;
+  const pcLiqA   = pcDebA - pcCredA;
+  const fcpA     = preco * alqFcp;
+  const margemA  = ((preco - cComST - 0 - pcLiqA - fcpA) / preco) * 100;
+
+  // ── BLOCO B: C_MAX (máximo custo novo regime mantendo margemA) ──
+  // Derivação: P×(1−M) = C_MAX×(1−b)×(1−pe) + P×[s + (1−s)×ps] + P×fcp
+  // → C_MAX = P×[1−M−s−(1−s)×ps−fcp] / [(1−b)×(1−pe)]
+  const M     = margemA / 100;
+  const denom = (1 - alqB) * (1 - alqPE);
+  const num   = preco * (1 - M - alqS - (1 - alqS) * alqPS - alqFcp);
+  const cMax  = denom > 0 ? num / denom : null;
+
+  // Verificação da margem com C_MAX (deve = margemA)
+  let margemMax = null;
+  let icmsLiqMax = null, pcLiqMax = null;
+  if (cMax !== null) {
+    icmsLiqMax = preco * alqS - cMax * alqB;
+    pcLiqMax   = basePcSaida * alqPS - cMax * (1 - alqB) * alqPE;
+    margemMax  = ((preco - cMax - icmsLiqMax - pcLiqMax - preco * alqFcp) / preco) * 100;
+  }
+
+  // ── BLOCO C: Custo proposto atual ────────────────────────────────
+  const icmsLiqC = preco * alqS - cSemST * alqB;
+  const pcLiqC   = basePcSaida * alqPS - cSemST * (1 - alqB) * alqPE;
+  const margemC  = ((preco - cSemST - icmsLiqC - pcLiqC - preco * alqFcp) / preco) * 100;
+
+  // ── Alerta ────────────────────────────────────────────────────────
+  let alerta = 'OK';
+  if (cMax !== null && cSemST > cMax + 0.001) alerta = 'CUSTO_ACIMA_MAXIMO';
+  else if (margemC < 28) alerta = 'MARGEM_CRITICA';
+  else if (margemC < 30) alerta = 'MARGEM_ABAIXO_30';
+  else if (margemA > 0 && margemC < margemA - 2) alerta = 'MARGEM_REDUZIDA';
+
+  const r4 = v => v != null ? +v.toFixed(4) : null;
+  const r2 = v => v != null ? +v.toFixed(2) : null;
+
+  return {
+    c_sem_st: r4(cSemST),
+    c_com_st_estimado: r4(cComST),
+    alq_icms_entrada: r2(alqB * 100),
+    alq_icms_saida: r2(alqS * 100),
+    alq_pc_entrada: r4(alqPE * 100),
+    alq_pc_saida: r4(alqPS * 100),
+    alq_fcp: r2(alqFcp * 100),
+    bloco_a: {
+      titulo: 'Regime Antigo (com ST)',
+      c_com_st: r4(cComST),
+      icms_pagar: 0,
+      pc_debito: r4(pcDebA),
+      pc_credito_lei14592: r4(pcCredA),
+      pc_liquido: r4(pcLiqA),
+      fcp: r4(fcpA),
+      margem_liquida: r2(margemA),
+    },
+    bloco_b: {
+      titulo: 'C_MAX — custo máximo para manter margem de ' + r2(margemA) + '%',
+      c_max: r4(cMax),
+      icms_debito: r4(preco * alqS),
+      icms_credito: cMax != null ? r4(cMax * alqB) : null,
+      icms_liquido: cMax != null ? r4(icmsLiqMax) : null,
+      base_pc: r4(basePcSaida),
+      pc_debito: r4(basePcSaida * alqPS),
+      pc_credito: cMax != null ? r4(cMax * (1 - alqB) * alqPE) : null,
+      pc_liquido: cMax != null ? r4(pcLiqMax) : null,
+      fcp: r4(preco * alqFcp),
+      margem_resultante: r2(margemMax),
+    },
+    bloco_c: {
+      titulo: 'Custo Proposto (atual cadastrado)',
+      c_sem_st: r4(cSemST),
+      icms_debito: r4(preco * alqS),
+      icms_credito: r4(cSemST * alqB),
+      icms_liquido: r4(icmsLiqC),
+      base_pc: r4(basePcSaida),
+      pc_debito: r4(basePcSaida * alqPS),
+      pc_credito: r4(cSemST * (1 - alqB) * alqPE),
+      pc_liquido: r4(pcLiqC),
+      fcp: r4(preco * alqFcp),
+      margem_resultante: r2(margemC),
+      ok: cMax === null || cSemST <= cMax + 0.001,
+    },
+    c_max: r4(cMax),
+    margem_anterior: r2(margemA),
+    margem_atual: r2(margemC),
+    variacao_margem: r2(margemC - margemA),
+    alerta,
   };
 }
 
