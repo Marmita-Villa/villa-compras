@@ -1638,6 +1638,81 @@ const server = http.createServer(async (req, res) => {
       return jRes(res, 200, { ok: true, datas_atualizadas: atualizadas });
     }
 
+    // ── Export endpoints para migração VillaHUB (one-time) ──────────────────
+    // Protegidos por header X-Export-Secret (env EXPORT_SECRET ou padrão)
+    if (pathname.startsWith('/api/export/')) {
+      const exportSecret = process.env.EXPORT_SECRET || 'villa-export-2025';
+      if (req.headers['x-export-secret'] !== exportSecret) {
+        return jRes(res, 401, { erro: 'Não autorizado' });
+      }
+
+      // GET /api/export/status — metadados do banco
+      if (pathname === '/api/export/status') {
+        return jRes(res, 200, db.getStats());
+      }
+
+      // GET /api/export/datas?loja=X — datas disponíveis no SQLite
+      if (pathname === '/api/export/datas') {
+        const loja = parseInt(q.loja || '0');
+        if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+        const vendasDatas  = db.db.prepare('SELECT data FROM vendas  WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+        const comprasDatas = db.db.prepare('SELECT data FROM compras WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+        const estoquesDatas= db.db.prepare('SELECT data FROM estoques WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+        return jRes(res, 200, { vendas: vendasDatas, compras: comprasDatas, estoques: estoquesDatas });
+      }
+
+      // GET /api/export/fornecedores
+      if (pathname === '/api/export/fornecedores') {
+        const r = db.db.prepare('SELECT json FROM fornecedores LIMIT 1').get();
+        return jRes(res, 200, { fornecedores: r ? JSON.parse(r.json) : [] });
+      }
+
+      // GET /api/export/produtos?loja=X
+      if (pathname === '/api/export/produtos') {
+        const loja = parseInt(q.loja || '0');
+        if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+        const r = db.db.prepare('SELECT json FROM produtos WHERE loja=?').get(loja);
+        return jRes(res, 200, { produtos: r ? JSON.parse(r.json) : [] });
+      }
+
+      // GET /api/export/fp?loja=X — fornecedor_produtos
+      if (pathname === '/api/export/fp') {
+        const loja = parseInt(q.loja || '0');
+        if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+        const r = db.db.prepare('SELECT json FROM fornecedor_produtos WHERE loja=?').get(loja);
+        return jRes(res, 200, { fp: r ? JSON.parse(r.json) : [] });
+      }
+
+      // GET /api/export/vendas?loja=X&data=YYYY-MM-DD
+      if (pathname === '/api/export/vendas') {
+        const loja = parseInt(q.loja || '0');
+        const data = q.data || '';
+        if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+        const r = db.db.prepare('SELECT json FROM vendas WHERE loja=? AND data=?').get(loja, data);
+        return jRes(res, 200, { vendas: r ? JSON.parse(r.json) : [] });
+      }
+
+      // GET /api/export/compras?loja=X&data=YYYY-MM-DD
+      if (pathname === '/api/export/compras') {
+        const loja = parseInt(q.loja || '0');
+        const data = q.data || '';
+        if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+        const r = db.db.prepare('SELECT json FROM compras WHERE loja=? AND data=?').get(loja, data);
+        return jRes(res, 200, { compras: r ? JSON.parse(r.json) : [] });
+      }
+
+      // GET /api/export/estoques?loja=X&data=YYYY-MM-DD
+      if (pathname === '/api/export/estoques') {
+        const loja = parseInt(q.loja || '0');
+        const data = q.data || '';
+        if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+        const r = db.db.prepare('SELECT json FROM estoques WHERE loja=? AND data=?').get(loja, data);
+        return jRes(res, 200, { estoques: r ? JSON.parse(r.json) : [] });
+      }
+
+      return jRes(res, 404, { erro: 'Export endpoint não encontrado' });
+    }
+
     jRes(res, 404, { erro: 'Rota não encontrada: ' + pathname });
   } catch (err) {
     console.error('[ERRO]', err.message);
