@@ -1145,6 +1145,37 @@ const server = http.createServer(async (req, res) => {
       const r = db.db.prepare('SELECT json FROM estoques WHERE loja=? AND data=?').get(loja, data);
       return jRes(res, 200, { estoques: r ? JSON.parse(r.json) : [] });
     }
+    // Bulk endpoints: retornam todos os dados de uma loja em uma só chamada
+    if (pathname === '/api/export/vendas-bulk') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const rows = db.db.prepare('SELECT data, json FROM vendas WHERE loja=? ORDER BY data').all(loja);
+      const vendas = rows.flatMap(r => {
+        try { const items = JSON.parse(r.json); return Array.isArray(items) ? items.map(v => ({...v, data: r.data, loja})) : []; }
+        catch(e) { return []; }
+      });
+      return jRes(res, 200, { vendas, total: vendas.length });
+    }
+    if (pathname === '/api/export/compras-bulk') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const rows = db.db.prepare('SELECT data, json FROM compras WHERE loja=? ORDER BY data').all(loja);
+      const compras = rows.flatMap(r => {
+        try { const items = JSON.parse(r.json); return Array.isArray(items) ? items.map(v => ({...v, data: r.data, loja})) : []; }
+        catch(e) { return []; }
+      });
+      return jRes(res, 200, { compras, total: compras.length });
+    }
+    if (pathname === '/api/export/estoques-bulk') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const rows = db.db.prepare('SELECT data, json FROM estoques WHERE loja=? ORDER BY data').all(loja);
+      const estoques = rows.flatMap(r => {
+        try { const items = JSON.parse(r.json); return Array.isArray(items) ? items.map(v => ({...v, data: r.data, loja})) : []; }
+        catch(e) { return []; }
+      });
+      return jRes(res, 200, { estoques, total: estoques.length });
+    }
     return jRes(res, 404, { erro: 'Export endpoint não encontrado' });
   }
 
