@@ -1094,6 +1094,60 @@ const server = http.createServer(async (req, res) => {
     return jRes(res, 200, { ok: true });
   }
 
+  // ── Export endpoints (sem sessão — autenticados por X-Export-Secret) ────────
+  if (pathname.startsWith('/api/export/')) {
+    const exportSecret = process.env.EXPORT_SECRET || 'villa-export-2025';
+    if (req.headers['x-export-secret'] !== exportSecret) {
+      return jRes(res, 401, { erro: 'Não autorizado' });
+    }
+    if (pathname === '/api/export/status') {
+      return jRes(res, 200, db.getStats());
+    }
+    if (pathname === '/api/export/datas') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const vendasDatas   = db.db.prepare('SELECT data FROM vendas  WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+      const comprasDatas  = db.db.prepare('SELECT data FROM compras WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+      const estoquesDatas = db.db.prepare('SELECT data FROM estoques WHERE loja=? ORDER BY data').all(loja).map(r => r.data);
+      return jRes(res, 200, { vendas: vendasDatas, compras: comprasDatas, estoques: estoquesDatas });
+    }
+    if (pathname === '/api/export/fornecedores') {
+      const r = db.db.prepare('SELECT json FROM fornecedores LIMIT 1').get();
+      return jRes(res, 200, { fornecedores: r ? JSON.parse(r.json) : [] });
+    }
+    if (pathname === '/api/export/produtos') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const r = db.db.prepare('SELECT json FROM produtos WHERE loja=?').get(loja);
+      return jRes(res, 200, { produtos: r ? JSON.parse(r.json) : [] });
+    }
+    if (pathname === '/api/export/fp') {
+      const loja = parseInt(q.loja || '0');
+      if (!loja) return jRes(res, 400, { erro: 'loja obrigatória' });
+      const r = db.db.prepare('SELECT json FROM fornecedor_produtos WHERE loja=?').get(loja);
+      return jRes(res, 200, { fp: r ? JSON.parse(r.json) : [] });
+    }
+    if (pathname === '/api/export/vendas') {
+      const loja = parseInt(q.loja || '0'); const data = q.data || '';
+      if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+      const r = db.db.prepare('SELECT json FROM vendas WHERE loja=? AND data=?').get(loja, data);
+      return jRes(res, 200, { vendas: r ? JSON.parse(r.json) : [] });
+    }
+    if (pathname === '/api/export/compras') {
+      const loja = parseInt(q.loja || '0'); const data = q.data || '';
+      if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+      const r = db.db.prepare('SELECT json FROM compras WHERE loja=? AND data=?').get(loja, data);
+      return jRes(res, 200, { compras: r ? JSON.parse(r.json) : [] });
+    }
+    if (pathname === '/api/export/estoques') {
+      const loja = parseInt(q.loja || '0'); const data = q.data || '';
+      if (!loja || !data) return jRes(res, 400, { erro: 'loja e data obrigatórios' });
+      const r = db.db.prepare('SELECT json FROM estoques WHERE loja=? AND data=?').get(loja, data);
+      return jRes(res, 200, { estoques: r ? JSON.parse(r.json) : [] });
+    }
+    return jRes(res, 404, { erro: 'Export endpoint não encontrado' });
+  }
+
   // ── Verificação de sessão para todas as outras rotas ───────────────────────
   const token = getCookie('sess');
   const sessao = db.getSessao(token);
